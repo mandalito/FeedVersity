@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BubbleBreak Icon Generator</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; background: #1a1a2e; color: white; }
+    .icons { display: flex; gap: 20px; flex-wrap: wrap; }
+    .icon-container { text-align: center; }
+    canvas { border: 1px solid #333; border-radius: 8px; }
+    h1 { color: #667eea; }
+    p { color: #8892b0; }
+    a { color: #667eea; }
+  </style>
+</head>
+<body>
+  <h1>🫧 BubbleBreak Icon Generator</h1>
+  <p>Right-click on each icon and "Save image as..." to download the PNG files.</p>
+  <p>Save them to: <code>extension/icons/</code></p>
+  
+  <div class="icons">
+    <div class="icon-container">
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <p>icon16.png</p>
+    </div>
+    <div class="icon-container">
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <p>icon48.png</p>
+    </div>
+    <div class="icon-container">
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <p>icon128.png</p>
+    </div>
+  </div>
+
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const scale = size / 128;
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#667eea');
+      gradient.addColorStop(1, '#764ba2');
+
+      // Rounded rectangle background
+      const radius = 24 * scale;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Main bubble
+      ctx.beginPath();
+      ctx.arc(64 * scale, 58 * scale, 28 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fill();
+
+      // Small bubbles
+      ctx.beginPath();
+      ctx.arc(48 * scale, 80 * scale, 14 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(88 * scale, 78 * scale, 16 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(72 * scale, 96 * scale, 10 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fill();
+    }
+
+    // Draw all icons
+    drawIcon(document.getElementById('icon16'));
+    drawIcon(document.getElementById('icon48'));
+    drawIcon(document.getElementById('icon128'));
+  </script>
+</body>
+</html>

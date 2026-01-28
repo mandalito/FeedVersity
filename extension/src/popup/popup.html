@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BubbleBreak</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 360px;
+      min-height: 400px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #ffffff;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      font-size: 32px;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #8892b0;
+      margin-top: 2px;
+    }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #8892b0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Tracking Status */
+    .tracking-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: #86efac;
+    }
+
+    .tracking-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    /* API Key Section */
+    .api-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .api-section h3 {
+      font-size: 13px;
+      color: #8892b0;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .api-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .api-input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      color: white;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    .api-input::placeholder {
+      color: #6b7280;
+    }
+
+    .api-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn-save {
+      padding: 10px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .api-status {
+      margin-top: 8px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .api-status.saved {
+      color: #4ade80;
+    }
+
+    .api-status.missing {
+      color: #f87171;
+    }
+
+    /* Progress */
+    .progress-section {
+      display: none;
+      margin-bottom: 20px;
+    }
+
+    .progress-section.active {
+      display: block;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: #8892b0;
+      text-align: center;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Messages */
+    .message {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .message.active {
+      display: block;
+    }
+
+    .message.info {
+      background: rgba(102, 126, 234, 0.2);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      color: #a5b4fc;
+    }
+
+    .message.success {
+      background: rgba(74, 222, 128, 0.2);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      color: #86efac;
+    }
+
+    .message.error {
+      background: rgba(248, 113, 113, 0.2);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      color: #fca5a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <span class="logo">🫧</span>
+      <div>
+        <div class="title">BubbleBreak</div>
+        <div class="subtitle">Real-time YouTube tracking</div>
+      </div>
+    </div>
+
+    <!-- Message area -->
+    <div id="message" class="message"></div>
+
+    <!-- Stats -->
+    <div class="stats" style="grid-template-columns: 1fr;">
+      <div class="stat-card">
+        <div class="stat-value" id="videoCount">0</div>
+        <div class="stat-label">Videos Tracked</div>
+      </div>
+    </div>
+
+    <!-- Progress section -->
+    <div id="progressSection" class="progress-section">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text" id="progressText">Processing...</div>
+    </div>
+
+    <!-- Tracking Status -->
+    <div class="tracking-status" id="trackingStatus">
+      <div class="tracking-indicator active"></div>
+      <span>Tracking active - videos are recorded as you watch</span>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnDashboard">
+        <span>📊</span> Open Dashboard
+      </button>
+      <button class="btn btn-secondary" id="btnScrape">
+        <span>📥</span> Import from History
+      </button>
+      <button class="btn btn-secondary" id="btnCategorize" disabled style="display: none;">
+        <span>🤖</span> Re-categorize All
+      </button>
+    </div>
+
+    <!-- API Key Section -->
+    <div class="api-section">
+      <h3>🔑 OpenAI API Key</h3>
+      <div class="api-input-group">
+        <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-...">
+        <button class="btn-save" id="btnSaveKey">Save</button>
+      </div>
+      <div id="apiStatus" class="api-status missing">
+        <span>⚠️</span> API key required for categorization
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <a href="#" id="btnClearData">Clear all data</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

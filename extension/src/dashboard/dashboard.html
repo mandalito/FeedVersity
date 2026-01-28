@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BubbleBreak Dashboard</title>
+  <script src="../lib/d3.v7.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      background: rgba(0, 0, 0, 0.3);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      font-size: 40px;
+    }
+
+    .title-group h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .title-group p {
+      color: #8892b0;
+      font-size: 14px;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 30px;
+    }
+
+    .header-stat {
+      text-align: center;
+    }
+
+    .header-stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .header-stat-label {
+      font-size: 12px;
+      color: #8892b0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      margin-left: 30px;
+    }
+
+    .btn-header {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-header:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .btn-header.btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .btn-header.btn-export {
+      background: rgba(74, 222, 128, 0.15);
+      border-color: rgba(74, 222, 128, 0.3);
+    }
+
+    .btn-header.btn-export:hover {
+      background: rgba(74, 222, 128, 0.3);
+      border-color: rgba(74, 222, 128, 0.5);
+    }
+
+    /* Main layout */
+    .main-container {
+      display: flex;
+      min-height: calc(100vh - 100px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: rgba(0, 0, 0, 0.2);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .sidebar h2 {
+      font-size: 16px;
+      color: #8892b0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    /* Risk Legend */
+    .risk-legend {
+      margin-bottom: 32px;
+    }
+
+    .risk-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .risk-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .risk-info {
+      flex: 1;
+    }
+
+    .risk-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .risk-desc {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .risk-count {
+      font-size: 14px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    /* Category breakdown */
+    .category-breakdown {
+      margin-bottom: 32px;
+    }
+
+    .category-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .category-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateX(4px);
+    }
+
+    .category-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .category-name {
+      flex: 1;
+      font-size: 13px;
+    }
+
+    .category-count {
+      font-size: 14px;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    /* Visualization area */
+    .viz-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+    }
+
+    #visualization {
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 1;
+      cursor: pointer;
+    }
+
+    .viz-instructions {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.6);
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 13px;
+      color: #8892b0;
+      pointer-events: none;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      padding: 12px;
+      background: rgba(15, 15, 26, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 1000;
+      max-width: 380px;
+      min-width: 300px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+
+    .tooltip.active {
+      opacity: 1;
+    }
+
+    .tooltip-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #ffffff;
+      line-height: 1.4;
+    }
+
+    .tooltip-channel {
+      font-size: 12px;
+      color: #8892b0;
+      margin-bottom: 12px;
+    }
+
+    .tooltip-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+    }
+
+    .tooltip-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tooltip-risk {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px;
+    }
+
+    .empty-state.active {
+      display: flex;
+    }
+
+    .empty-state-icon {
+      font-size: 80px;
+      margin-bottom: 24px;
+    }
+
+    .empty-state h2 {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state p {
+      color: #8892b0;
+      margin-bottom: 24px;
+      max-width: 400px;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    /* Loading state */
+    .loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loading.active {
+      display: flex;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(102, 126, 234, 0.2);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading p {
+      margin-top: 20px;
+      color: #8892b0;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .main-container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .header {
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+
+      .header-stats {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .header-actions {
+        margin-left: auto;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .header {
+        padding: 15px 20px;
+      }
+
+      .title-group h1 {
+        font-size: 20px;
+      }
+
+      .header-stat-value {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-section">
+      <span class="logo">🫧</span>
+      <div class="title-group">
+        <h1>BubbleBreak</h1>
+        <p>Your YouTube consumption bubble visualized</p>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="header-stat">
+        <div class="header-stat-value" id="totalVideos">0</div>
+        <div class="header-stat-label">Videos</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-value" id="totalCategories">0</div>
+        <div class="header-stat-label">Categories</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-value" id="avgRisk">0.0</div>
+        <div class="header-stat-label">Avg Risk</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-header btn-export" id="btnExport" title="Export data as CSV for research">
+        <span>📤</span>
+      </button>
+      <button class="btn-header" id="btnRefresh" title="Refresh data">
+        <span>🔄</span>
+      </button>
+      <button class="btn-header btn-danger" id="btnClearData" title="Clear all data">
+        <span>🗑️</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="risk-legend">
+        <h2>Risk Levels</h2>
+        <div id="riskLegend"></div>
+      </div>
+
+      <div class="category-breakdown">
+        <h2>Categories</h2>
+        <div id="categoryList"></div>
+      </div>
+    </aside>
+
+    <!-- Visualization area -->
+    <main class="viz-container">
+      <!-- Loading state -->
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Loading your data...</p>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📺</div>
+        <h2>No Data Yet</h2>
+        <p>Scrape your YouTube watch history and categorize it with AI to see your media consumption bubble.</p>
+        <button class="btn btn-primary" id="btnGetStarted">
+          <span>🚀</span> Get Started
+        </button>
+        <button class="btn btn-secondary" id="btnLoadSample" style="margin-top: 12px;">
+          <span>🧪</span> Load Sample Data (Demo)
+        </button>
+      </div>
+
+      <!-- Visualization -->
+      <div id="visualization" style="display: none;"></div>
+      <div class="viz-instructions" id="instructions" style="display: none;">
+        Click a bubble to zoom in • Click outside to zoom out
+      </div>
+    </main>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="tooltip" id="tooltip"></div>
+
+  <script src="sample-data.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
