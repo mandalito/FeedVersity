@@ -268,14 +268,122 @@ async function saveBlackoutState(state) {
   }
 }
 
-// Calculate risk statistics from videos
-function calculateRiskStats(videos) {
-  if (!videos || videos.length === 0) {
-    return { avgRisk: 0, highRiskCount: 0, problematicCategories: [] };
+// ==========================================
+// ADVANCED RISK CALCULATION (EMA + Streak)
+// ==========================================
+
+// EMA smoothing factor (0.15 = moderate reactivity to recent changes)
+const EMA_ALPHA = 0.15;
+
+// Streak configuration
+const STREAK_CONFIG = {
+  HIGH_RISK_THRESHOLD: 2.5,  // Risk level considered "high" for streak
+  MULTIPLIER_BASE: 1.15,     // Each consecutive high-risk video multiplies by this
+  MAX_MULTIPLIER: 2.0,       // Cap the streak multiplier
+  RESET_REDUCTION: 2         // How many "good" videos to fully reset streak
+};
+
+// Calculate Exponential Moving Average of risk scores
+function calculateEMA(videos) {
+  if (!videos || videos.length === 0) return 0;
+  if (videos.length === 1) return videos[0].radicalizationRisk || 0;
+  
+  // Sort by timestamp (oldest first for EMA calculation)
+  const sorted = [...videos].sort((a, b) => {
+    const timeA = new Date(a.scrapedAt || a.categorizedAt || 0).getTime();
+    const timeB = new Date(b.scrapedAt || b.categorizedAt || 0).getTime();
+    return timeA - timeB;
+  });
+  
+  // Calculate EMA: recent videos have more weight
+  let ema = sorted[0].radicalizationRisk || 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const risk = sorted[i].radicalizationRisk || 0;
+    ema = EMA_ALPHA * risk + (1 - EMA_ALPHA) * ema;
   }
   
+  return ema;
+}
+
+// Calculate streak-adjusted effective risk for each video
+function calculateStreakAdjustedRisks(videos) {
+  if (!videos || videos.length === 0) return [];
+  
+  // Sort by timestamp (oldest first)
+  const sorted = [...videos].sort((a, b) => {
+    const timeA = new Date(a.scrapedAt || a.categorizedAt || 0).getTime();
+    const timeB = new Date(b.scrapedAt || b.categorizedAt || 0).getTime();
+    return timeA - timeB;
+  });
+  
+  let consecutiveHighRisk = 0;
+  const adjustedVideos = [];
+  
+  for (const video of sorted) {
+    const baseRisk = video.radicalizationRisk || 0;
+    let effectiveRisk = baseRisk;
+    
+    if (baseRisk >= STREAK_CONFIG.HIGH_RISK_THRESHOLD) {
+      // Increment streak
+      consecutiveHighRisk++;
+      
+      // Apply streak multiplier (exponential, capped)
+      const streakMultiplier = Math.min(
+        Math.pow(STREAK_CONFIG.MULTIPLIER_BASE, consecutiveHighRisk - 1),
+        STREAK_CONFIG.MAX_MULTIPLIER
+      );
+      
+      effectiveRisk = Math.min(baseRisk * streakMultiplier, 5); // Cap at 5
+    } else {
+      // Low-risk video reduces streak
+      consecutiveHighRisk = Math.max(0, consecutiveHighRisk - STREAK_CONFIG.RESET_REDUCTION);
+    }
+    
+    adjustedVideos.push({
+      ...video,
+      effectiveRisk,
+      streakAtTime: consecutiveHighRisk
+    });
+  }
+  
+  return adjustedVideos;
+}
+
+// Calculate risk statistics from videos (with EMA and Streak)
+function calculateRiskStats(videos) {
+  if (!videos || videos.length === 0) {
+    return { 
+      avgRisk: 0, 
+      emaRisk: 0,
+      simpleAvgRisk: 0,
+      highRiskCount: 0, 
+      currentStreak: 0,
+      problematicCategories: [] 
+    };
+  }
+  
+  // Simple average (for display/comparison)
   const totalRisk = videos.reduce((sum, v) => sum + (v.radicalizationRisk || 0), 0);
-  const avgRisk = totalRisk / videos.length;
+  const simpleAvgRisk = totalRisk / videos.length;
+  
+  // EMA-based average (recent videos weighted more)
+  const emaRisk = calculateEMA(videos);
+  
+  // Streak-adjusted risks
+  const adjustedVideos = calculateStreakAdjustedRisks(videos);
+  const currentStreak = adjustedVideos.length > 0 
+    ? adjustedVideos[adjustedVideos.length - 1].streakAtTime 
+    : 0;
+  
+  // Calculate EMA of streak-adjusted risks for final score
+  let adjustedEMA = adjustedVideos[0]?.effectiveRisk || 0;
+  for (let i = 1; i < adjustedVideos.length; i++) {
+    adjustedEMA = EMA_ALPHA * adjustedVideos[i].effectiveRisk + (1 - EMA_ALPHA) * adjustedEMA;
+  }
+  
+  // Final avgRisk combines EMA + streak adjustment
+  // Weight: 70% adjusted EMA, 30% simple EMA (for stability)
+  const avgRisk = 0.7 * adjustedEMA + 0.3 * emaRisk;
   
   // Count videos by category
   const categoryCount = {};
@@ -302,16 +410,26 @@ function calculateRiskStats(videos) {
   
   const highRiskCount = videos.filter(v => (v.radicalizationRisk || 0) >= 3).length;
   
-  return { avgRisk, highRiskCount, problematicCategories };
+  console.log(`[BubbleBreak BG] Risk Stats: simple=${simpleAvgRisk.toFixed(2)}, ema=${emaRisk.toFixed(2)}, adjusted=${avgRisk.toFixed(2)}, streak=${currentStreak}`);
+  
+  return { 
+    avgRisk,           // Final combined score (used for blackout)
+    emaRisk,           // Pure EMA score
+    simpleAvgRisk,     // Simple average (for comparison)
+    highRiskCount, 
+    currentStreak,
+    problematicCategories 
+  };
 }
 
 // Check and update blackout state based on current video data
 async function checkAndUpdateBlackoutState() {
   const videos = await getCategorizedVideos();
   const currentState = await getBlackoutState();
-  const { avgRisk, highRiskCount, problematicCategories } = calculateRiskStats(videos);
+  const riskStats = calculateRiskStats(videos);
+  const { avgRisk, emaRisk, simpleAvgRisk, highRiskCount, currentStreak, problematicCategories } = riskStats;
   
-  console.log(`[BubbleBreak BG] Checking blackout: avgRisk=${avgRisk.toFixed(2)}, videos=${videos.length}, highRisk=${highRiskCount}`);
+  console.log(`[BubbleBreak BG] Checking blackout: avgRisk=${avgRisk.toFixed(2)}, ema=${emaRisk.toFixed(2)}, streak=${currentStreak}, videos=${videos.length}`);
   
   // Not enough videos to make a determination
   if (videos.length < BLACKOUT_THRESHOLDS.MIN_VIDEOS) {
@@ -319,11 +437,11 @@ async function checkAndUpdateBlackoutState() {
     return currentState;
   }
   
-  let newState = { ...currentState, avgRisk };
+  let newState = { ...currentState, avgRisk, emaRisk, simpleAvgRisk, currentStreak };
   
   // Check if we should activate blackout
   if (!currentState.isActive && avgRisk >= BLACKOUT_THRESHOLDS.ACTIVATE) {
-    console.log('[BubbleBreak BG] ACTIVATING BLACKOUT - avg risk:', avgRisk);
+    console.log('[BubbleBreak BG] ACTIVATING BLACKOUT - avg risk:', avgRisk, 'streak:', currentStreak);
     
     // Generate recommendations when activating
     const apiKey = await getApiKey();
@@ -342,6 +460,9 @@ async function checkAndUpdateBlackoutState() {
       activatedAt: new Date().toISOString(),
       triggerRisk: avgRisk,
       avgRisk: avgRisk,
+      emaRisk: emaRisk,
+      simpleAvgRisk: simpleAvgRisk,
+      currentStreak: currentStreak,
       problematicCategories: problematicCategories,
       recommendations: recommendations
     };
@@ -359,6 +480,9 @@ async function checkAndUpdateBlackoutState() {
       activatedAt: null,
       triggerRisk: 0,
       avgRisk: avgRisk,
+      emaRisk: emaRisk,
+      simpleAvgRisk: simpleAvgRisk,
+      currentStreak: currentStreak,
       problematicCategories: [],
       recommendations: []
     };
@@ -527,7 +651,9 @@ async function trackAndCategorizeVideo(video) {
       allCategorized.push(uncategorized);
       await saveCategorizedVideos(allCategorized);
       
-      return { success: true, video: uncategorized, error: error.message };
+      // Still check blackout state even on error
+      const blackoutState = await checkAndUpdateBlackoutState();
+      return { success: true, video: uncategorized, blackoutState, error: error.message };
     }
   } else {
     // No auto-categorize, just save as pending
@@ -542,7 +668,9 @@ async function trackAndCategorizeVideo(video) {
     allCategorized.push(pending);
     await saveCategorizedVideos(allCategorized);
 
-    return { success: true, video: pending };
+    // Check blackout state
+    const blackoutState = await checkAndUpdateBlackoutState();
+    return { success: true, video: pending, blackoutState };
   }
 }
 

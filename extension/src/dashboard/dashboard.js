@@ -57,6 +57,13 @@ const modalMessage = document.getElementById('modalMessage');
 const modalConfirm = document.getElementById('modalConfirm');
 const modalCancel = document.getElementById('modalCancel');
 
+// Chart modal elements
+const chartModal = document.getElementById('chartModal');
+const chartCloseBtn = document.getElementById('chartCloseBtn');
+const btnShowChart = document.getElementById('btnShowChart');
+const chartContainer = document.getElementById('chartContainer');
+const chartStats = document.getElementById('chartStats');
+
 let categorizedVideos = [];
 let hierarchyData = null;
 let showHighRiskOnly = false;
@@ -291,6 +298,29 @@ if (toggleHighRisk) {
   });
 }
 
+// Show Chart button
+if (btnShowChart) {
+  btnShowChart.addEventListener('click', () => {
+    showChartModal();
+  });
+}
+
+// Close chart modal
+if (chartCloseBtn) {
+  chartCloseBtn.addEventListener('click', () => {
+    hideChartModal();
+  });
+}
+
+// Close chart modal on outside click
+if (chartModal) {
+  chartModal.addEventListener('click', (e) => {
+    if (e.target === chartModal) {
+      hideChartModal();
+    }
+  });
+}
+
 // Export Data button - Export as CSV for research
 const btnExport = document.getElementById('btnExport');
 if (btnExport) {
@@ -306,7 +336,7 @@ if (btnExport) {
 
 // Export data to CSV file
 function exportToCSV(videos) {
-  // Define CSV columns
+  // Define CSV columns - includes risk evolution data for research
   const columns = [
     'video_id',
     'title',
@@ -323,7 +353,14 @@ function exportToCSV(videos) {
     'description',
     'thumbnail_url',
     'video_url',
-    'scraped_at'
+    'scraped_at',
+    // Risk evolution columns for research
+    'sequence_number',
+    'running_simple_avg',
+    'running_ema',
+    'running_combined_risk',
+    'streak_at_time',
+    'is_recovery_video'
   ];
   
   // Clean text fields - remove line breaks, tabs, and normalize whitespace
@@ -346,11 +383,33 @@ function exportToCSV(videos) {
     return str;
   }
   
+  // Calculate risk evolution for each video in chronological order
+  const evolution = calculateRiskEvolution(videos);
+  
+  // Create a map of videoId to evolution data
+  const evolutionMap = new Map();
+  
+  // Sort videos by timestamp for evolution mapping
+  const sortedVideos = [...videos].sort((a, b) => {
+    const timeA = new Date(a.scrapedAt || a.categorizedAt || 0).getTime();
+    const timeB = new Date(b.scrapedAt || b.categorizedAt || 0).getTime();
+    return timeA - timeB;
+  });
+  
+  sortedVideos.forEach((video, index) => {
+    if (evolution[index]) {
+      evolutionMap.set(video.videoId, evolution[index]);
+    }
+  });
+  
   // Build CSV content with UTF-8 BOM for Excel compatibility
   // The BOM (\uFEFF) tells Excel to interpret the file as UTF-8
   let csvContent = '\uFEFF' + columns.join(',') + '\n';
   
-  for (const video of videos) {
+  // Export in chronological order for research analysis
+  for (const video of sortedVideos) {
+    const evo = evolutionMap.get(video.videoId) || {};
+    
     const row = [
       video.videoId || '',
       cleanText(video.title),
@@ -362,12 +421,19 @@ function exportToCSV(videos) {
       video.subscribers || '',
       video.uploadDate || '',
       video.category || 'uncategorized',
-      video.radicalization_risk !== undefined ? video.radicalization_risk : '',
+      video.radicalizationRisk !== undefined ? video.radicalizationRisk : '',
       cleanText(video.reasoning),
       cleanText(video.description),
       video.thumbnail || '',
       video.url || '',
-      video.scrapedAt || ''
+      video.scrapedAt || '',
+      // Risk evolution data
+      evo.index || '',
+      evo.simpleAvg !== undefined ? evo.simpleAvg.toFixed(4) : '',
+      evo.emaRisk !== undefined ? evo.emaRisk.toFixed(4) : '',
+      evo.combinedRisk !== undefined ? evo.combinedRisk.toFixed(4) : '',
+      evo.streak !== undefined ? evo.streak : '',
+      video.isRecoveryVideo ? 'true' : 'false'
     ];
     
     csvContent += row.map(escapeCSV).join(',') + '\n';
@@ -391,7 +457,7 @@ function exportToCSV(videos) {
   // Cleanup
   URL.revokeObjectURL(url);
   
-  console.log(`📤 Exported ${videos.length} videos to CSV`);
+  console.log(`📤 Exported ${videos.length} videos to CSV with risk evolution data`);
 }
 
 // Show states
@@ -491,14 +557,411 @@ function processData() {
   }
   totalCategoriesEl.textContent = Object.keys(categoryGroups).filter(k => categoryGroups[k].children.length > 0).length;
   
-  // Always show avg risk from ALL videos (not filtered)
-  const avgRisk = categorizedVideos.length > 0 
-    ? categorizedVideos.reduce((sum, v) => sum + (v.radicalizationRisk || 0), 0) / categorizedVideos.length
-    : 0;
-  avgRiskEl.textContent = avgRisk.toFixed(1);
+  // Calculate risk using EMA + Streak (same as background)
+  const riskStats = calculateAdvancedRiskStats(categorizedVideos);
+  avgRiskEl.textContent = riskStats.avgRisk.toFixed(1);
   
   // Update risk meter position (0-5 scale to 0-100%)
-  updateRiskMeter(avgRisk);
+  updateRiskMeter(riskStats.avgRisk);
+  
+  // Update streak indicator
+  const streakEl = document.getElementById('currentStreak');
+  const streakContainer = document.getElementById('streakContainer');
+  if (streakEl && streakContainer) {
+    streakEl.textContent = riskStats.currentStreak;
+    // Show streak indicator only when there's an active streak
+    streakContainer.style.display = riskStats.currentStreak > 0 ? 'flex' : 'none';
+  }
+}
+
+// ==========================================
+// ADVANCED RISK CALCULATION (EMA + Streak)
+// Mirrors the background.js calculation
+// ==========================================
+
+const EMA_ALPHA = 0.15;
+const STREAK_CONFIG = {
+  HIGH_RISK_THRESHOLD: 2.5,
+  MULTIPLIER_BASE: 1.15,
+  MAX_MULTIPLIER: 2.0,
+  RESET_REDUCTION: 2
+};
+
+function calculateAdvancedRiskStats(videos) {
+  if (!videos || videos.length === 0) {
+    return { avgRisk: 0, emaRisk: 0, simpleAvgRisk: 0, currentStreak: 0 };
+  }
+  
+  // Simple average
+  const totalRisk = videos.reduce((sum, v) => sum + (v.radicalizationRisk || 0), 0);
+  const simpleAvgRisk = totalRisk / videos.length;
+  
+  // Sort by timestamp (oldest first)
+  const sorted = [...videos].sort((a, b) => {
+    const timeA = new Date(a.scrapedAt || a.categorizedAt || 0).getTime();
+    const timeB = new Date(b.scrapedAt || b.categorizedAt || 0).getTime();
+    return timeA - timeB;
+  });
+  
+  // Calculate EMA
+  let emaRisk = sorted[0].radicalizationRisk || 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const risk = sorted[i].radicalizationRisk || 0;
+    emaRisk = EMA_ALPHA * risk + (1 - EMA_ALPHA) * emaRisk;
+  }
+  
+  // Calculate streak-adjusted EMA
+  let consecutiveHighRisk = 0;
+  let adjustedEMA = sorted[0].radicalizationRisk || 0;
+  
+  for (let i = 0; i < sorted.length; i++) {
+    const baseRisk = sorted[i].radicalizationRisk || 0;
+    let effectiveRisk = baseRisk;
+    
+    if (baseRisk >= STREAK_CONFIG.HIGH_RISK_THRESHOLD) {
+      consecutiveHighRisk++;
+      const streakMultiplier = Math.min(
+        Math.pow(STREAK_CONFIG.MULTIPLIER_BASE, consecutiveHighRisk - 1),
+        STREAK_CONFIG.MAX_MULTIPLIER
+      );
+      effectiveRisk = Math.min(baseRisk * streakMultiplier, 5);
+    } else {
+      consecutiveHighRisk = Math.max(0, consecutiveHighRisk - STREAK_CONFIG.RESET_REDUCTION);
+    }
+    
+    if (i === 0) {
+      adjustedEMA = effectiveRisk;
+    } else {
+      adjustedEMA = EMA_ALPHA * effectiveRisk + (1 - EMA_ALPHA) * adjustedEMA;
+    }
+  }
+  
+  // Final combined score
+  const avgRisk = 0.7 * adjustedEMA + 0.3 * emaRisk;
+  
+  return {
+    avgRisk,
+    emaRisk,
+    simpleAvgRisk,
+    currentStreak: consecutiveHighRisk
+  };
+}
+
+// ==========================================
+// RISK EVOLUTION CHART
+// ==========================================
+
+function calculateRiskEvolution(videos) {
+  if (!videos || videos.length === 0) return [];
+  
+  // Sort by timestamp
+  const sorted = [...videos].sort((a, b) => {
+    const timeA = new Date(a.scrapedAt || a.categorizedAt || 0).getTime();
+    const timeB = new Date(b.scrapedAt || b.categorizedAt || 0).getTime();
+    return timeA - timeB;
+  });
+  
+  const evolution = [];
+  let runningSum = 0;
+  let ema = 0;
+  let adjustedEMA = 0;
+  let consecutiveHighRisk = 0;
+  
+  for (let i = 0; i < sorted.length; i++) {
+    const video = sorted[i];
+    const risk = video.radicalizationRisk || 0;
+    runningSum += risk;
+    
+    // Simple average
+    const simpleAvg = runningSum / (i + 1);
+    
+    // EMA
+    if (i === 0) {
+      ema = risk;
+      adjustedEMA = risk;
+    } else {
+      ema = EMA_ALPHA * risk + (1 - EMA_ALPHA) * ema;
+    }
+    
+    // Streak-adjusted
+    let effectiveRisk = risk;
+    if (risk >= STREAK_CONFIG.HIGH_RISK_THRESHOLD) {
+      consecutiveHighRisk++;
+      const multiplier = Math.min(
+        Math.pow(STREAK_CONFIG.MULTIPLIER_BASE, consecutiveHighRisk - 1),
+        STREAK_CONFIG.MAX_MULTIPLIER
+      );
+      effectiveRisk = Math.min(risk * multiplier, 5);
+    } else {
+      consecutiveHighRisk = Math.max(0, consecutiveHighRisk - STREAK_CONFIG.RESET_REDUCTION);
+    }
+    
+    if (i > 0) {
+      adjustedEMA = EMA_ALPHA * effectiveRisk + (1 - EMA_ALPHA) * adjustedEMA;
+    }
+    
+    const combinedRisk = 0.7 * adjustedEMA + 0.3 * ema;
+    
+    evolution.push({
+      index: i + 1,
+      timestamp: new Date(video.scrapedAt || video.categorizedAt),
+      title: video.title,
+      videoRisk: risk,
+      simpleAvg: simpleAvg,
+      emaRisk: ema,
+      combinedRisk: combinedRisk,
+      streak: consecutiveHighRisk
+    });
+  }
+  
+  return evolution;
+}
+
+function renderRiskChart() {
+  const evolution = calculateRiskEvolution(categorizedVideos);
+  
+  if (evolution.length < 2) {
+    chartContainer.innerHTML = `
+      <div style="text-align: center; padding: 60px; color: #8892b0;">
+        <p style="font-size: 48px; margin-bottom: 20px;">📊</p>
+        <p>Need at least 2 videos to show evolution chart.</p>
+        <p style="font-size: 14px; margin-top: 10px;">Currently tracking: ${evolution.length} video(s)</p>
+      </div>
+    `;
+    chartStats.innerHTML = '';
+    return;
+  }
+  
+  // Reset container
+  chartContainer.innerHTML = '<svg id="riskChart"></svg>';
+  
+  const svg = d3.select('#riskChart');
+  const containerRect = chartContainer.getBoundingClientRect();
+  const margin = { top: 30, right: 30, bottom: 50, left: 50 };
+  const width = Math.max(600, containerRect.width - 40) - margin.left - margin.right;
+  const height = 320 - margin.top - margin.bottom;
+  
+  svg.attr('width', width + margin.left + margin.right)
+     .attr('height', height + margin.top + margin.bottom);
+  
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+  
+  // Scales
+  const x = d3.scaleLinear()
+    .domain([1, evolution.length])
+    .range([0, width]);
+  
+  const y = d3.scaleLinear()
+    .domain([0, 5])
+    .range([height, 0]);
+  
+  // Gradient for background zones
+  const gradient = g.append('defs')
+    .append('linearGradient')
+    .attr('id', 'riskGradient')
+    .attr('x1', '0%').attr('y1', '100%')
+    .attr('x2', '0%').attr('y2', '0%');
+  
+  gradient.append('stop').attr('offset', '0%').attr('stop-color', '#4CAF50').attr('stop-opacity', 0.1);
+  gradient.append('stop').attr('offset', '50%').attr('stop-color', '#FFC107').attr('stop-opacity', 0.1);
+  gradient.append('stop').attr('offset', '100%').attr('stop-color', '#F44336').attr('stop-opacity', 0.1);
+  
+  g.append('rect')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('fill', 'url(#riskGradient)');
+  
+  // Blackout threshold line
+  g.append('line')
+    .attr('x1', 0)
+    .attr('x2', width)
+    .attr('y1', y(2.5))
+    .attr('y2', y(2.5))
+    .attr('stroke', '#f87171')
+    .attr('stroke-width', 2)
+    .attr('stroke-dasharray', '8,4')
+    .attr('opacity', 0.8);
+  
+  g.append('text')
+    .attr('x', width - 5)
+    .attr('y', y(2.5) - 8)
+    .attr('text-anchor', 'end')
+    .attr('fill', '#f87171')
+    .attr('font-size', '11px')
+    .text('Blackout Threshold');
+  
+  // Axes
+  const xAxis = d3.axisBottom(x)
+    .ticks(Math.min(evolution.length, 10))
+    .tickFormat(d => `#${d}`);
+  
+  const yAxis = d3.axisLeft(y)
+    .ticks(5)
+    .tickFormat(d => d.toFixed(1));
+  
+  g.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(xAxis)
+    .attr('color', '#8892b0');
+  
+  g.append('g')
+    .call(yAxis)
+    .attr('color', '#8892b0');
+  
+  // X axis label
+  g.append('text')
+    .attr('x', width / 2)
+    .attr('y', height + 40)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#8892b0')
+    .attr('font-size', '12px')
+    .text('Video #');
+  
+  // Y axis label
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -height / 2)
+    .attr('y', -35)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#8892b0')
+    .attr('font-size', '12px')
+    .text('Risk Score');
+  
+  // Line generators
+  const lineSimple = d3.line()
+    .x(d => x(d.index))
+    .y(d => y(d.simpleAvg))
+    .curve(d3.curveMonotoneX);
+  
+  const lineCombined = d3.line()
+    .x(d => x(d.index))
+    .y(d => y(d.combinedRisk))
+    .curve(d3.curveMonotoneX);
+  
+  // Draw simple average line
+  g.append('path')
+    .datum(evolution)
+    .attr('fill', 'none')
+    .attr('stroke', '#8892b0')
+    .attr('stroke-width', 2)
+    .attr('stroke-dasharray', '4,4')
+    .attr('d', lineSimple);
+  
+  // Draw combined risk line
+  g.append('path')
+    .datum(evolution)
+    .attr('fill', 'none')
+    .attr('stroke', '#64ffda')
+    .attr('stroke-width', 3)
+    .attr('d', lineCombined);
+  
+  // Add dots for each video
+  g.selectAll('.dot-combined')
+    .data(evolution)
+    .enter()
+    .append('circle')
+    .attr('class', 'dot-combined')
+    .attr('cx', d => x(d.index))
+    .attr('cy', d => y(d.combinedRisk))
+    .attr('r', 5)
+    .attr('fill', '#64ffda')
+    .attr('stroke', '#0a192f')
+    .attr('stroke-width', 2)
+    .style('cursor', 'pointer')
+    .on('mouseover', function(event, d) {
+      d3.select(this).attr('r', 8);
+      showChartTooltip(event, d);
+    })
+    .on('mouseout', function() {
+      d3.select(this).attr('r', 5);
+      hideChartTooltip();
+    });
+  
+  // Update stats
+  const latest = evolution[evolution.length - 1];
+  const highest = evolution.reduce((max, d) => d.combinedRisk > max.combinedRisk ? d : max, evolution[0]);
+  const lowest = evolution.reduce((min, d) => d.combinedRisk < min.combinedRisk ? d : min, evolution[0]);
+  const trend = evolution.length > 5 
+    ? (latest.combinedRisk - evolution[evolution.length - 6].combinedRisk).toFixed(2)
+    : 'N/A';
+  
+  chartStats.innerHTML = `
+    <div class="chart-stat">
+      <div class="chart-stat-value">${latest.combinedRisk.toFixed(2)}</div>
+      <div class="chart-stat-label">Current Risk</div>
+    </div>
+    <div class="chart-stat">
+      <div class="chart-stat-value" style="color: #f87171;">${highest.combinedRisk.toFixed(2)}</div>
+      <div class="chart-stat-label">Peak Risk (#${highest.index})</div>
+    </div>
+    <div class="chart-stat">
+      <div class="chart-stat-value" style="color: #4CAF50;">${lowest.combinedRisk.toFixed(2)}</div>
+      <div class="chart-stat-label">Lowest (#${lowest.index})</div>
+    </div>
+    <div class="chart-stat">
+      <div class="chart-stat-value" style="color: ${trend !== 'N/A' && parseFloat(trend) > 0 ? '#f87171' : '#4CAF50'};">
+        ${trend !== 'N/A' ? (parseFloat(trend) > 0 ? '↑' : '↓') + ' ' + Math.abs(parseFloat(trend)).toFixed(2) : trend}
+      </div>
+      <div class="chart-stat-label">Last 5 Trend</div>
+    </div>
+  `;
+}
+
+// Chart tooltip
+let chartTooltipEl = null;
+
+function showChartTooltip(event, d) {
+  if (!chartTooltipEl) {
+    chartTooltipEl = document.createElement('div');
+    chartTooltipEl.style.cssText = `
+      position: fixed;
+      background: rgba(17, 34, 64, 0.95);
+      border: 1px solid rgba(100, 255, 218, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      color: #ccd6f6;
+      pointer-events: none;
+      z-index: 100001;
+      max-width: 250px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    `;
+    document.body.appendChild(chartTooltipEl);
+  }
+  
+  const riskColor = d.videoRisk >= 3 ? '#f87171' : d.videoRisk >= 2 ? '#FFC107' : '#4CAF50';
+  
+  chartTooltipEl.innerHTML = `
+    <div style="font-weight: 600; margin-bottom: 8px; color: #64ffda;">Video #${d.index}</div>
+    <div style="margin-bottom: 6px; font-size: 11px; color: #8892b0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${d.title}</div>
+    <div style="display: grid; gap: 4px; font-size: 11px;">
+      <div>Video Risk: <span style="color: ${riskColor}; font-weight: 600;">${d.videoRisk}</span></div>
+      <div>Combined: <span style="color: #64ffda; font-weight: 600;">${d.combinedRisk.toFixed(2)}</span></div>
+      <div>Simple Avg: <span style="color: #8892b0;">${d.simpleAvg.toFixed(2)}</span></div>
+      ${d.streak > 0 ? `<div>Streak: <span style="color: #f87171;">🔥 ${d.streak}</span></div>` : ''}
+    </div>
+  `;
+  
+  chartTooltipEl.style.display = 'block';
+  chartTooltipEl.style.left = `${event.clientX + 15}px`;
+  chartTooltipEl.style.top = `${event.clientY - 10}px`;
+}
+
+function hideChartTooltip() {
+  if (chartTooltipEl) {
+    chartTooltipEl.style.display = 'none';
+  }
+}
+
+function showChartModal() {
+  chartModal.classList.add('active');
+  renderRiskChart();
+}
+
+function hideChartModal() {
+  chartModal.classList.remove('active');
+  hideChartTooltip();
 }
 
 // Render sidebar

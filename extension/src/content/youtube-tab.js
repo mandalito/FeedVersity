@@ -8,18 +8,29 @@
   let dashboardVisible = false;
   let blackoutActive = false;
 
+  // SVG icon for BubbleBreak (bubble/circle design matching YouTube style)
+  const BUBBLEBREAK_ICON = `
+    <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style="pointer-events: none; display: block; width: 24px; height: 24px; fill: currentColor;">
+      <circle cx="12" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="17" cy="16" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="7" cy="17" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="10" cy="8" r="1" fill="currentColor"/>
+    </svg>
+  `;
+
   // Create the BubbleBreak tab element
   function createBubbleBreakTab() {
     const tab = document.createElement('a');
     tab.id = 'bubblebreak-tab';
     tab.href = '#bubblebreak';
     tab.className = 'yt-simple-endpoint style-scope ytd-guide-entry-renderer';
+    tab.style.cssText = 'display: flex !important; text-decoration: none !important;';
     tab.innerHTML = `
-      <tp-yt-paper-item class="style-scope ytd-guide-entry-renderer" role="option" tabindex="0">
-        <yt-icon class="guide-icon style-scope ytd-guide-entry-renderer">
-          <span style="font-size: 20px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;">🫧</span>
+      <tp-yt-paper-item class="style-scope ytd-guide-entry-renderer" role="option" tabindex="0" style="display: flex !important; align-items: center !important; padding: 0 24px !important; height: 40px !important;">
+        <yt-icon class="guide-icon style-scope ytd-guide-entry-renderer" style="margin-right: 24px !important; width: 24px !important; height: 24px !important; color: var(--yt-spec-text-primary, #f1f1f1) !important;">
+          ${BUBBLEBREAK_ICON}
         </yt-icon>
-        <yt-formatted-string class="title style-scope ytd-guide-entry-renderer">BubbleBreak</yt-formatted-string>
+        <span style="color: var(--yt-spec-text-primary, #f1f1f1) !important; font-size: 14px !important; font-family: 'Roboto', 'Arial', sans-serif !important; line-height: 20px !important;">BubbleBreak</span>
       </tp-yt-paper-item>
     `;
     
@@ -38,12 +49,13 @@
     mini.id = 'bubblebreak-mini-tab';
     mini.href = '#bubblebreak';
     mini.className = 'yt-simple-endpoint style-scope ytd-mini-guide-entry-renderer';
+    mini.style.cssText = 'display: flex !important; flex-direction: column !important; align-items: center !important; text-decoration: none !important;';
     mini.innerHTML = `
-      <tp-yt-paper-item class="style-scope ytd-mini-guide-entry-renderer" role="option" tabindex="0">
-        <yt-icon class="guide-icon style-scope ytd-mini-guide-entry-renderer">
-          <span style="font-size: 20px;">🫧</span>
+      <tp-yt-paper-item class="style-scope ytd-mini-guide-entry-renderer" role="option" tabindex="0" style="display: flex !important; flex-direction: column !important; align-items: center !important; padding: 16px 0 14px !important;">
+        <yt-icon class="guide-icon style-scope ytd-mini-guide-entry-renderer" style="margin-bottom: 6px !important; width: 24px !important; height: 24px !important; color: var(--yt-spec-text-primary, #f1f1f1) !important;">
+          ${BUBBLEBREAK_ICON}
         </yt-icon>
-        <yt-formatted-string class="title style-scope ytd-mini-guide-entry-renderer">BubbleBreak</yt-formatted-string>
+        <span style="color: var(--yt-spec-text-secondary, #aaa) !important; font-size: 10px !important; font-family: 'Roboto', 'Arial', sans-serif !important; line-height: 1.2 !important; text-overflow: ellipsis !important; max-width: 64px !important; overflow: hidden !important; white-space: nowrap !important;">Bubble</span>
       </tp-yt-paper-item>
     `;
     

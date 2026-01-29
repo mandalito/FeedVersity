@@ -67,6 +67,23 @@
       justify-content: center;
     }
 
+    .streak-indicator {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      padding: 8px 16px;
+      animation: pulse-streak 2s infinite;
+    }
+
+    .streak-value {
+      color: #f87171 !important;
+    }
+
+    @keyframes pulse-streak {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+      50% { box-shadow: 0 0 15px 5px rgba(239, 68, 68, 0.3); }
+    }
+
     .header-stat-value {
       font-size: 32px;
       font-weight: 700;
@@ -708,6 +725,145 @@
         font-size: 24px;
       }
     }
+
+    /* Chart Modal */
+    .chart-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 25, 47, 0.95);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .chart-modal.active {
+      display: flex;
+    }
+
+    .chart-modal-content {
+      background: linear-gradient(135deg, #112240 0%, #1d3461 100%);
+      border-radius: 20px;
+      padding: 30px;
+      width: 100%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(100, 255, 218, 0.2);
+    }
+
+    .chart-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-modal-header h2 {
+      font-size: 24px;
+      color: #ccd6f6;
+      margin: 0;
+    }
+
+    .chart-close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #8892b0;
+      font-size: 28px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chart-close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ccd6f6;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #8892b0;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    .legend-threshold .legend-line {
+      width: 16px;
+      height: 0;
+      border-top: 2px dashed #f87171;
+    }
+
+    .chart-container {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    #riskChart {
+      width: 100%;
+      height: 350px;
+    }
+
+    .chart-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+    }
+
+    .chart-stat {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .chart-stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #64ffda;
+      margin-bottom: 4px;
+    }
+
+    .chart-stat-label {
+      font-size: 12px;
+      color: #8892b0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-chart {
+      background: rgba(100, 255, 218, 0.1) !important;
+      border: 1px solid rgba(100, 255, 218, 0.3) !important;
+    }
+
+    .btn-chart:hover {
+      background: rgba(100, 255, 218, 0.2) !important;
+    }
   </style>
 </head>
 <body>
@@ -728,6 +884,10 @@
       <div class="header-stat">
         <div class="header-stat-value" id="totalCategories">0</div>
         <div class="header-stat-label">Categories</div>
+      </div>
+      <div class="header-stat streak-indicator" id="streakContainer" style="display: none;">
+        <div class="header-stat-value streak-value" id="currentStreak">0</div>
+        <div class="header-stat-label">Streak 🔥</div>
       </div>
       <div class="header-stat risk-meter-container">
         <div class="risk-meter-label">Your Risk Score</div>
@@ -762,6 +922,9 @@
         </label>
         <span class="toggle-label">High Risk Only</span>
       </div>
+      <button class="btn-header btn-chart" id="btnShowChart" title="View risk score evolution">
+        <span>📈</span>
+      </button>
       <button class="btn-header btn-export" id="btnExport" title="Export data as CSV for research">
         <span>📤</span>
       </button>
@@ -784,6 +947,25 @@
         <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel</button>
         <button class="modal-btn modal-btn-confirm" id="modalConfirm">Confirm</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Risk Evolution Chart Modal -->
+  <div id="chartModal" class="chart-modal">
+    <div class="chart-modal-content">
+      <div class="chart-modal-header">
+        <h2>📈 Risk Score Evolution</h2>
+        <button class="chart-close-btn" id="chartCloseBtn">×</button>
+      </div>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-color" style="background: #64ffda;"></span> Combined Risk (EMA + Streak)</span>
+        <span class="legend-item"><span class="legend-color" style="background: #8892b0;"></span> Simple Average</span>
+        <span class="legend-item legend-threshold"><span class="legend-line"></span> Blackout Threshold (2.5)</span>
+      </div>
+      <div class="chart-container" id="chartContainer">
+        <svg id="riskChart"></svg>
+      </div>
+      <div class="chart-stats" id="chartStats"></div>
     </div>
   </div>
 

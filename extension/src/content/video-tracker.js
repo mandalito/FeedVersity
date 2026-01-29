@@ -250,6 +250,11 @@
       // Determine which action to use
       const action = isRecoveryVideo ? 'trackRecoveryVideo' : 'trackVideo';
       
+      // IMPORTANT: Capture the blackout state BEFORE the async call to avoid race conditions
+      // with the blackoutStateChanged message listener
+      const blackoutWasActiveBeforeTrack = wasBlackoutActive;
+      console.log('🫧 [BubbleBreak] Blackout state before tracking:', blackoutWasActiveBeforeTrack);
+      
       // Send to background script for storage
       chrome.runtime.sendMessage({
         action: action,
@@ -273,12 +278,15 @@
           }
           
           // If blackout was just deactivated (transitioned from active to inactive), notify
+          // Use the captured state from BEFORE the async call to avoid race conditions
           if (response.blackoutState) {
             const isNowActive = response.blackoutState.isActive;
-            if (wasBlackoutActive && !isNowActive) {
+            console.log('🫧 [BubbleBreak] Blackout transition check: was=', blackoutWasActiveBeforeTrack, 'now=', isNowActive);
+            if (blackoutWasActiveBeforeTrack && !isNowActive) {
               console.log('🫧 [BubbleBreak] Blackout just cleared! Showing recovery notification.');
               showRecoveryCompleteNotification();
             }
+            // Update the global state for future checks
             wasBlackoutActive = isNowActive;
           }
         } else {
