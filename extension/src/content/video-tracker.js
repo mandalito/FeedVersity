@@ -9,6 +9,7 @@
   let currentVideoId = null;
   let watchStartTime = null;
   let hasTrackedCurrentVideo = false;
+  let wasBlackoutActive = false; // Track previous blackout state
   const MIN_WATCH_TIME_MS = 5000; // Minimum 5 seconds to count as "watched"
 
   // Check if current page is a video page
@@ -235,11 +236,25 @@
 
     console.log('🫧 [BubbleBreak] Tracking video:', videoData.title);
 
+    // Check if this video is from a recovery recommendation
+    const recoveryQuery = sessionStorage.getItem('bubblebreak_recovery_query');
+    const isRecoveryVideo = !!recoveryQuery;
+    
+    if (isRecoveryVideo) {
+      console.log('🫧 [BubbleBreak] This is a RECOVERY video from query:', recoveryQuery);
+      // Clear the recovery query after use
+      sessionStorage.removeItem('bubblebreak_recovery_query');
+    }
+
     try {
+      // Determine which action to use
+      const action = isRecoveryVideo ? 'trackRecoveryVideo' : 'trackVideo';
+      
       // Send to background script for storage
       chrome.runtime.sendMessage({
-        action: 'trackVideo',
-        video: videoData
+        action: action,
+        video: videoData,
+        recommendationQuery: recoveryQuery
       }, (response) => {
         console.log('🫧 [BubbleBreak] Background response:', response);
         if (chrome.runtime.lastError) {
@@ -249,7 +264,23 @@
         if (response?.success) {
           console.log('🫧 [BubbleBreak] Video tracked successfully');
           hasTrackedCurrentVideo = true;
-          showTrackingIndicator(videoData);
+          
+          // Show different indicator for recovery videos
+          if (isRecoveryVideo && response.recoveryCredit) {
+            showRecoveryIndicator(videoData);
+          } else {
+            showTrackingIndicator(videoData);
+          }
+          
+          // If blackout was just deactivated (transitioned from active to inactive), notify
+          if (response.blackoutState) {
+            const isNowActive = response.blackoutState.isActive;
+            if (wasBlackoutActive && !isNowActive) {
+              console.log('🫧 [BubbleBreak] Blackout just cleared! Showing recovery notification.');
+              showRecoveryCompleteNotification();
+            }
+            wasBlackoutActive = isNowActive;
+          }
         } else {
           console.log('🫧 [BubbleBreak] Track response not successful:', response);
         }
@@ -257,6 +288,109 @@
     } catch (error) {
       console.error('🫧 [BubbleBreak] Error tracking video:', error);
     }
+  }
+  
+  // Show indicator for recovery video
+  function showRecoveryIndicator(videoData) {
+    hideTrackingIndicator();
+
+    const indicator = document.createElement('div');
+    indicator.id = 'bubblebreak-tracked';
+    indicator.innerHTML = `
+      <div style="
+        position: fixed;
+        bottom: 150px;
+        right: 20px;
+        background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(74, 222, 128, 0.4);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease, fadeOut 0.5s ease 4s forwards;
+        cursor: pointer;
+      ">
+        <span style="font-size: 16px;">✨</span>
+        <span>Great choice! Helping you break the bubble</span>
+      </div>
+      <style>
+        @keyframes slideIn {
+          from { transform: translateX(100px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+          to { opacity: 0; transform: translateX(20px); }
+        }
+      </style>
+    `;
+    document.body.appendChild(indicator);
+
+    // Auto-remove after animation
+    setTimeout(() => {
+      indicator.remove();
+    }, 5000);
+  }
+  
+  // Show notification when recovery is complete
+  function showRecoveryCompleteNotification() {
+    const notification = document.createElement('div');
+    notification.id = 'bubblebreak-recovery-complete';
+    notification.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        text-align: center;
+        animation: popIn 0.4s ease;
+      ">
+        <div style="font-size: 60px; margin-bottom: 20px;">🎉</div>
+        <h2 style="font-size: 24px; margin-bottom: 12px; color: #4ade80;">Filter Bubble Cleared!</h2>
+        <p style="color: #9ca3af; font-size: 14px; margin-bottom: 24px; max-width: 300px;">
+          Great job! Your YouTube recommendations have been restored. 
+          Keep watching diverse content to stay balanced.
+        </p>
+        <button id="bb-recovery-ok" style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 14px 40px;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        ">Got it!</button>
+      </div>
+      <style>
+        @keyframes popIn {
+          0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+      </style>
+    `;
+    document.body.appendChild(notification);
+    
+    document.getElementById('bb-recovery-ok').addEventListener('click', () => {
+      notification.remove();
+    });
+    
+    // Auto-close after 10 seconds
+    setTimeout(() => {
+      notification.remove();
+    }, 10000);
   }
 
   // Check if we should track the current video
@@ -390,6 +524,15 @@
         sendResponse({ success: true });
         break;
 
+      case 'blackoutStateChanged':
+        // Update our tracking of blackout state
+        if (request.state) {
+          wasBlackoutActive = request.state.isActive;
+          console.log('🫧 [BubbleBreak] Blackout state updated:', wasBlackoutActive);
+        }
+        sendResponse({ received: true });
+        break;
+
       default:
         sendResponse({ error: 'Unknown action' });
     }
@@ -402,6 +545,14 @@
   console.log('🫧 [BubbleBreak] Is video page:', isVideoPage());
   
   setupUrlChangeListener();
+  
+  // Check initial blackout state
+  chrome.runtime.sendMessage({ action: 'getBlackoutState' }, (response) => {
+    if (response && response.state) {
+      wasBlackoutActive = response.state.isActive;
+      console.log('🫧 [BubbleBreak] Initial blackout state:', wasBlackoutActive);
+    }
+  });
   
   // Initial check after page load
   console.log('🫧 [BubbleBreak] Setting up initial check timer (1.5s)');

@@ -12,8 +12,21 @@ const STORAGE_KEYS = {
   VIDEOS: 'bubblebreak_videos',
   CATEGORIZED: 'bubblebreak_categorized',
   API_KEY: 'bubblebreak_openai_key',
-  SETTINGS: 'bubblebreak_settings'
+  SETTINGS: 'bubblebreak_settings',
+  BLACKOUT: 'bubblebreak_blackout'
 };
+
+// Blackout thresholds
+const BLACKOUT_THRESHOLDS = {
+  ACTIVATE: 2.5,    // Activate when avg risk >= 2.5
+  DEACTIVATE: 2.0,  // Deactivate when avg risk < 2.0 (hysteresis)
+  MIN_VIDEOS: 5     // Minimum videos required to trigger blackout
+};
+
+// High-risk categories that contribute more to blackout
+const HIGH_RISK_CATEGORIES = [
+  'conspiracy_content', 'pseudoscience', 'extremist_content', 'misinformation'
+];
 
 // OpenAI API configuration
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -120,6 +133,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch(err => sendResponse({ error: err.message }));
       return true;
 
+    case 'getBlackoutState':
+      getBlackoutState()
+        .then(state => sendResponse({ state }))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+
+    case 'checkBlackout':
+      checkAndUpdateBlackoutState()
+        .then(state => sendResponse({ state }))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+
+    case 'generateRecommendations':
+      generateCounterRecommendations()
+        .then(recommendations => sendResponse({ recommendations }))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+
+    case 'disableBlackout':
+      disableBlackout()
+        .then(() => sendResponse({ success: true }))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+
+    case 'trackRecoveryVideo':
+      // Track a video watched from recommendations (gives recovery bonus)
+      trackRecoveryVideo(request.video, request.recommendationQuery)
+        .then(result => sendResponse(result))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+
+    case 'getRecoveryProgress':
+      getRecoveryProgress()
+        .then(progress => sendResponse({ progress }))
+        .catch(err => sendResponse({ error: err.message }));
+      return true;
+
     default:
       sendResponse({ error: 'Unknown action' });
   }
@@ -183,6 +233,242 @@ async function saveSettings(settings) {
   await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: settings });
 }
 
+// ==========================================
+// BLACKOUT STATE MANAGEMENT
+// ==========================================
+
+// Get current blackout state
+async function getBlackoutState() {
+  const result = await chrome.storage.local.get(STORAGE_KEYS.BLACKOUT);
+  return result[STORAGE_KEYS.BLACKOUT] || {
+    isActive: false,
+    activatedAt: null,
+    triggerRisk: 0,
+    avgRisk: 0,
+    problematicCategories: [],
+    recommendations: []
+  };
+}
+
+// Save blackout state
+async function saveBlackoutState(state) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.BLACKOUT]: state });
+  
+  // Notify all YouTube tabs about state change
+  try {
+    const tabs = await chrome.tabs.query({ url: '*://www.youtube.com/*' });
+    for (const tab of tabs) {
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'blackoutStateChanged',
+        state: state
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.log('[BubbleBreak BG] Could not notify tabs:', e);
+  }
+}
+
+// Calculate risk statistics from videos
+function calculateRiskStats(videos) {
+  if (!videos || videos.length === 0) {
+    return { avgRisk: 0, highRiskCount: 0, problematicCategories: [] };
+  }
+  
+  const totalRisk = videos.reduce((sum, v) => sum + (v.radicalizationRisk || 0), 0);
+  const avgRisk = totalRisk / videos.length;
+  
+  // Count videos by category
+  const categoryCount = {};
+  const categoryRisk = {};
+  
+  videos.forEach(v => {
+    const cat = v.category || 'other';
+    categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+    categoryRisk[cat] = (categoryRisk[cat] || 0) + (v.radicalizationRisk || 0);
+  });
+  
+  // Find problematic categories (high risk or in HIGH_RISK_CATEGORIES)
+  const problematicCategories = Object.entries(categoryCount)
+    .filter(([cat, count]) => {
+      const avgCatRisk = categoryRisk[cat] / count;
+      return HIGH_RISK_CATEGORIES.includes(cat) || avgCatRisk >= 3;
+    })
+    .map(([cat, count]) => ({
+      category: cat,
+      count: count,
+      avgRisk: categoryRisk[cat] / count
+    }))
+    .sort((a, b) => b.avgRisk - a.avgRisk);
+  
+  const highRiskCount = videos.filter(v => (v.radicalizationRisk || 0) >= 3).length;
+  
+  return { avgRisk, highRiskCount, problematicCategories };
+}
+
+// Check and update blackout state based on current video data
+async function checkAndUpdateBlackoutState() {
+  const videos = await getCategorizedVideos();
+  const currentState = await getBlackoutState();
+  const { avgRisk, highRiskCount, problematicCategories } = calculateRiskStats(videos);
+  
+  console.log(`[BubbleBreak BG] Checking blackout: avgRisk=${avgRisk.toFixed(2)}, videos=${videos.length}, highRisk=${highRiskCount}`);
+  
+  // Not enough videos to make a determination
+  if (videos.length < BLACKOUT_THRESHOLDS.MIN_VIDEOS) {
+    console.log('[BubbleBreak BG] Not enough videos for blackout check');
+    return currentState;
+  }
+  
+  let newState = { ...currentState, avgRisk };
+  
+  // Check if we should activate blackout
+  if (!currentState.isActive && avgRisk >= BLACKOUT_THRESHOLDS.ACTIVATE) {
+    console.log('[BubbleBreak BG] ACTIVATING BLACKOUT - avg risk:', avgRisk);
+    
+    // Generate recommendations when activating
+    const apiKey = await getApiKey();
+    let recommendations = [];
+    
+    if (apiKey) {
+      try {
+        recommendations = await generateCounterRecommendations(problematicCategories, apiKey);
+      } catch (e) {
+        console.error('[BubbleBreak BG] Failed to generate recommendations:', e);
+      }
+    }
+    
+    newState = {
+      isActive: true,
+      activatedAt: new Date().toISOString(),
+      triggerRisk: avgRisk,
+      avgRisk: avgRisk,
+      problematicCategories: problematicCategories,
+      recommendations: recommendations
+    };
+    
+    await saveBlackoutState(newState);
+    return newState;
+  }
+  
+  // Check if we should deactivate blackout (with hysteresis)
+  if (currentState.isActive && avgRisk < BLACKOUT_THRESHOLDS.DEACTIVATE) {
+    console.log('[BubbleBreak BG] DEACTIVATING BLACKOUT - avg risk:', avgRisk);
+    
+    newState = {
+      isActive: false,
+      activatedAt: null,
+      triggerRisk: 0,
+      avgRisk: avgRisk,
+      problematicCategories: [],
+      recommendations: []
+    };
+    
+    await saveBlackoutState(newState);
+    return newState;
+  }
+  
+  // Update stats without changing active state
+  newState.problematicCategories = problematicCategories;
+  await saveBlackoutState(newState);
+  
+  return newState;
+}
+
+// Manually disable blackout (user override)
+async function disableBlackout() {
+  const state = {
+    isActive: false,
+    activatedAt: null,
+    triggerRisk: 0,
+    avgRisk: 0,
+    problematicCategories: [],
+    recommendations: [],
+    userDisabled: true,
+    disabledAt: new Date().toISOString()
+  };
+  await saveBlackoutState(state);
+  console.log('[BubbleBreak BG] Blackout manually disabled by user');
+}
+
+// Track a video watched from recommendations (recovery bonus)
+async function trackRecoveryVideo(video, recommendationQuery) {
+  if (!video || !video.videoId) {
+    throw new Error('Invalid video data');
+  }
+  
+  console.log('[BubbleBreak BG] Tracking recovery video:', video.title, 'from query:', recommendationQuery);
+  
+  // Mark this as a recovery video
+  video.isRecoveryVideo = true;
+  video.recoveryQuery = recommendationQuery;
+  
+  // Track the video normally (it will be categorized)
+  const result = await trackAndCategorizeVideo(video);
+  
+  // If categorized with low risk, give additional recovery credit
+  if (result.video && result.video.radicalizationRisk <= 1) {
+    console.log('[BubbleBreak BG] Good recovery video! Low risk:', result.video.radicalizationRisk);
+    
+    // Check and update blackout state
+    const newState = await checkAndUpdateBlackoutState();
+    
+    // Notify about recovery progress
+    chrome.runtime.sendMessage({
+      action: 'recoveryProgress',
+      progress: await getRecoveryProgress()
+    }).catch(() => {});
+    
+    return { ...result, recoveryCredit: true, blackoutState: newState };
+  }
+  
+  return result;
+}
+
+// Get recovery progress information
+async function getRecoveryProgress() {
+  const videos = await getCategorizedVideos();
+  const blackoutState = await getBlackoutState();
+  
+  if (!blackoutState.isActive) {
+    return {
+      isRecovering: false,
+      message: 'No active filter bubble'
+    };
+  }
+  
+  const { avgRisk } = calculateRiskStats(videos);
+  const targetRisk = BLACKOUT_THRESHOLDS.DEACTIVATE;
+  const currentRisk = avgRisk;
+  const triggerRisk = blackoutState.triggerRisk || BLACKOUT_THRESHOLDS.ACTIVATE;
+  
+  // Calculate progress percentage (from trigger to target)
+  const totalReduction = triggerRisk - targetRisk;
+  const currentReduction = triggerRisk - currentRisk;
+  const progressPercent = Math.min(100, Math.max(0, (currentReduction / totalReduction) * 100));
+  
+  // Count recovery videos watched
+  const recoveryVideos = videos.filter(v => v.isRecoveryVideo).length;
+  const lowRiskVideos = videos.filter(v => (v.radicalizationRisk || 0) <= 1).length;
+  
+  // Estimate videos needed to recover
+  const riskPerVideo = 0.1; // Approximate impact per low-risk video
+  const videosNeeded = Math.ceil((currentRisk - targetRisk) / riskPerVideo);
+  
+  return {
+    isRecovering: true,
+    currentRisk: currentRisk.toFixed(2),
+    targetRisk: targetRisk.toFixed(2),
+    triggerRisk: triggerRisk.toFixed(2),
+    progressPercent: Math.round(progressPercent),
+    recoveryVideosWatched: recoveryVideos,
+    lowRiskVideosTotal: lowRiskVideos,
+    estimatedVideosNeeded: Math.max(0, videosNeeded),
+    message: progressPercent >= 100 
+      ? 'Almost there! Your feed will be restored soon.'
+      : `Watch ${Math.max(1, videosNeeded)} more balanced videos to recover.`
+  };
+}
+
 // Track and auto-categorize a single video in real-time
 async function trackAndCategorizeVideo(video) {
   if (!video || !video.videoId) {
@@ -223,7 +509,10 @@ async function trackAndCategorizeVideo(video) {
         video: categorized
       }).catch(() => {});
 
-      return { success: true, video: categorized };
+      // Check if blackout should be triggered after this video
+      const blackoutState = await checkAndUpdateBlackoutState();
+      
+      return { success: true, video: categorized, blackoutState };
     } catch (error) {
       console.error('[BubbleBreak BG] Auto-categorization failed:', error);
       // Still save as uncategorized
@@ -486,6 +775,144 @@ Return ONLY valid JSON, no other text.`;
       categorizedAt: new Date().toISOString()
     };
   });
+}
+
+// ==========================================
+// COUNTER-RECOMMENDATIONS GENERATION
+// ==========================================
+
+// Generate counter-recommendation search queries using OpenAI
+async function generateCounterRecommendations(problematicCategories, apiKey) {
+  if (!apiKey) {
+    apiKey = await getApiKey();
+  }
+  
+  if (!apiKey) {
+    console.log('[BubbleBreak BG] No API key for recommendations');
+    return getDefaultRecommendations(problematicCategories);
+  }
+  
+  // Get recent high-risk videos for context
+  const videos = await getCategorizedVideos();
+  const highRiskVideos = videos
+    .filter(v => (v.radicalizationRisk || 0) >= 3)
+    .slice(-10)
+    .map(v => `- "${v.title}" (${v.category}, risk: ${v.radicalizationRisk})`);
+  
+  const categoriesInfo = problematicCategories
+    .map(c => `- ${c.category}: ${c.count} videos, avg risk ${c.avgRisk.toFixed(1)}`)
+    .join('\n');
+  
+  const prompt = `You are helping a user break out of a YouTube filter bubble. They have been watching content that may be leading them toward misinformation or extreme viewpoints.
+
+Their problematic viewing patterns:
+${categoriesInfo}
+
+Recent high-risk videos they watched:
+${highRiskVideos.join('\n')}
+
+Generate 5 YouTube search queries that would help this user:
+1. Find balanced, factual content on similar topics
+2. Expose them to different perspectives
+3. Lead them to authoritative, trustworthy sources
+4. Help them develop critical thinking about these topics
+
+Requirements:
+- Queries should be related to their interests but from credible sources
+- Include searches for fact-checking, educational, and mainstream news content
+- Suggest queries for media literacy and critical thinking
+- Make queries specific and searchable on YouTube
+
+Return ONLY a JSON array:
+[
+  {"query": "YouTube search query here", "reason": "Why this helps balance their view (max 15 words)"},
+  ...
+]`;
+
+  try {
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a media literacy expert helping users break out of filter bubbles. Generate helpful YouTube search queries. Always return valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('Empty response from API');
+    }
+
+    // Parse JSON response
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+    
+    const recommendations = JSON.parse(jsonMatch[0]);
+    
+    // Add YouTube search URLs
+    return recommendations.map(rec => ({
+      ...rec,
+      searchUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(rec.query)}`
+    }));
+    
+  } catch (error) {
+    console.error('[BubbleBreak BG] Failed to generate recommendations:', error);
+    return getDefaultRecommendations(problematicCategories);
+  }
+}
+
+// Default recommendations when API is unavailable
+function getDefaultRecommendations(problematicCategories) {
+  const defaults = [
+    {
+      query: "media literacy how to spot misinformation",
+      reason: "Learn to identify misleading content"
+    },
+    {
+      query: "fact checking techniques for news",
+      reason: "Develop skills to verify information"
+    },
+    {
+      query: "multiple perspectives on current events",
+      reason: "See different viewpoints on issues"
+    },
+    {
+      query: "critical thinking skills education",
+      reason: "Strengthen analytical abilities"
+    },
+    {
+      query: "reliable news sources explained",
+      reason: "Find trustworthy information sources"
+    }
+  ];
+  
+  return defaults.map(rec => ({
+    ...rec,
+    searchUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(rec.query)}`
+  }));
 }
 
 // Extension installation handler

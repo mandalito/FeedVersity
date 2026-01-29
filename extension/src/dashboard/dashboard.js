@@ -41,18 +41,118 @@ const sidebarEl = document.getElementById('sidebar');
 const totalVideosEl = document.getElementById('totalVideos');
 const totalCategoriesEl = document.getElementById('totalCategories');
 const avgRiskEl = document.getElementById('avgRisk');
+const userRiskMarkerEl = document.getElementById('userRiskMarker');
 const riskLegendEl = document.getElementById('riskLegend');
 const categoryListEl = document.getElementById('categoryList');
 const btnGetStarted = document.getElementById('btnGetStarted');
 const btnRefresh = document.getElementById('btnRefresh');
 const btnClearData = document.getElementById('btnClearData');
+const toggleHighRisk = document.getElementById('toggleHighRisk');
+
+// Modal elements
+const customModal = document.getElementById('customModal');
+const modalIcon = document.getElementById('modalIcon');
+const modalTitle = document.getElementById('modalTitle');
+const modalMessage = document.getElementById('modalMessage');
+const modalConfirm = document.getElementById('modalConfirm');
+const modalCancel = document.getElementById('modalCancel');
 
 let categorizedVideos = [];
 let hierarchyData = null;
+let showHighRiskOnly = false;
+
+// Custom modal function
+function showModal(options) {
+  return new Promise((resolve) => {
+    modalIcon.textContent = options.icon || '⚠️';
+    modalTitle.textContent = options.title || 'Confirm';
+    modalMessage.textContent = options.message || 'Are you sure?';
+    modalConfirm.textContent = options.confirmText || 'Confirm';
+    modalCancel.textContent = options.cancelText || 'Cancel';
+    
+    // Style confirm button
+    modalConfirm.className = 'modal-btn modal-btn-confirm' + (options.danger ? '' : ' primary');
+    
+    customModal.classList.add('active');
+    
+    const handleConfirm = () => {
+      customModal.classList.remove('active');
+      cleanup();
+      resolve(true);
+    };
+    
+    const handleCancel = () => {
+      customModal.classList.remove('active');
+      cleanup();
+      resolve(false);
+    };
+    
+    const handleBackdrop = (e) => {
+      if (e.target === customModal) {
+        handleCancel();
+      }
+    };
+    
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        handleCancel();
+      }
+    };
+    
+    const cleanup = () => {
+      modalConfirm.removeEventListener('click', handleConfirm);
+      modalCancel.removeEventListener('click', handleCancel);
+      customModal.removeEventListener('click', handleBackdrop);
+      document.removeEventListener('keydown', handleEscape);
+    };
+    
+    modalConfirm.addEventListener('click', handleConfirm);
+    modalCancel.addEventListener('click', handleCancel);
+    customModal.addEventListener('click', handleBackdrop);
+    document.addEventListener('keydown', handleEscape);
+  });
+}
+
+// Update risk meter visualization
+function updateRiskMeter(riskValue) {
+  if (!userRiskMarkerEl) return;
+  
+  // Clamp value between 0 and 5
+  const clampedRisk = Math.max(0, Math.min(5, riskValue || 0));
+  
+  // Convert to percentage (0-5 -> 0-100%)
+  const percentage = (clampedRisk / 5) * 100;
+  
+  // Update marker position
+  userRiskMarkerEl.style.left = `${percentage}%`;
+  
+  // Update marker color based on risk level
+  const markerValue = userRiskMarkerEl.querySelector('.risk-marker-value');
+  if (markerValue) {
+    // Color gradient from green to red
+    if (clampedRisk < 1) {
+      markerValue.style.color = '#4CAF50';
+    } else if (clampedRisk < 2) {
+      markerValue.style.color = '#8BC34A';
+    } else if (clampedRisk < 3) {
+      markerValue.style.color = '#FFC107';
+    } else if (clampedRisk < 4) {
+      markerValue.style.color = '#FF9800';
+    } else if (clampedRisk < 4.5) {
+      markerValue.style.color = '#FF5722';
+    } else {
+      markerValue.style.color = '#F44336';
+    }
+  }
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   showLoading();
+  
+  // Initialize risk meter to 0
+  updateRiskMeter(0);
+  
   await loadData();
   
   if (categorizedVideos.length > 0) {
@@ -122,9 +222,16 @@ if (btnRefresh) {
 // Clear Data button
 if (btnClearData) {
   btnClearData.addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to clear all tracked videos? This cannot be undone.')) {
-      return;
-    }
+    const confirmed = await showModal({
+      icon: '🗑️',
+      title: 'Clear All Data?',
+      message: 'This will permanently delete all your tracked videos and categories. This action cannot be undone.',
+      confirmText: 'Delete All',
+      cancelText: 'Keep Data',
+      danger: true
+    });
+    
+    if (!confirmed) return;
     
     try {
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
@@ -138,6 +245,7 @@ if (btnClearData) {
       totalVideosEl.textContent = '0';
       totalCategoriesEl.textContent = '0';
       avgRiskEl.textContent = '0.0';
+      updateRiskMeter(0);
       
       // Clear visualization
       vizEl.innerHTML = '';
@@ -145,10 +253,40 @@ if (btnClearData) {
       // Show empty state
       showEmptyState();
       
-      alert('All data has been cleared!');
+      // Show success modal
+      await showModal({
+        icon: '✅',
+        title: 'Data Cleared',
+        message: 'All your tracked videos have been successfully deleted.',
+        confirmText: 'OK',
+        cancelText: 'OK',
+        danger: false
+      });
     } catch (error) {
       console.error('Error clearing data:', error);
-      alert('Failed to clear data. Please try again.');
+      await showModal({
+        icon: '❌',
+        title: 'Error',
+        message: 'Failed to clear data. Please try again.',
+        confirmText: 'OK',
+        cancelText: 'OK',
+        danger: true
+      });
+    }
+  });
+}
+
+// Toggle High Risk Filter
+if (toggleHighRisk) {
+  toggleHighRisk.addEventListener('change', () => {
+    showHighRiskOnly = toggleHighRisk.checked;
+    if (categorizedVideos.length > 0) {
+      processData();
+      renderSidebar();
+      showVisualization();
+      setTimeout(() => {
+        renderVisualization();
+      }, 50);
     }
   });
 }
@@ -300,10 +438,15 @@ async function loadData() {
 
 // Process data for visualization
 function processData() {
+  // Filter videos based on high risk toggle
+  const videosToProcess = showHighRiskOnly 
+    ? categorizedVideos.filter(v => (v.radicalizationRisk || 0) >= 2.5)
+    : categorizedVideos;
+  
   // Group by category
   const categoryGroups = {};
   
-  categorizedVideos.forEach(video => {
+  videosToProcess.forEach(video => {
     const cat = video.category || 'other';
     if (!categoryGroups[cat]) {
       categoryGroups[cat] = {
@@ -334,18 +477,28 @@ function processData() {
     });
   });
 
-  // Build hierarchy
+  // Build hierarchy - filter out empty categories
   hierarchyData = {
-    name: "Your Watch History",
-    children: Object.values(categoryGroups)
+    name: showHighRiskOnly ? "High Risk Content (≥2.5)" : "Your Watch History",
+    children: Object.values(categoryGroups).filter(cat => cat.children.length > 0)
   };
 
-  // Update stats
-  totalVideosEl.textContent = categorizedVideos.length;
-  totalCategoriesEl.textContent = Object.keys(categoryGroups).length;
+  // Update stats - show filtered count if toggle is on
+  if (showHighRiskOnly) {
+    totalVideosEl.textContent = `${videosToProcess.length}/${categorizedVideos.length}`;
+  } else {
+    totalVideosEl.textContent = categorizedVideos.length;
+  }
+  totalCategoriesEl.textContent = Object.keys(categoryGroups).filter(k => categoryGroups[k].children.length > 0).length;
   
-  const avgRisk = categorizedVideos.reduce((sum, v) => sum + (v.radicalizationRisk || 0), 0) / categorizedVideos.length;
+  // Always show avg risk from ALL videos (not filtered)
+  const avgRisk = categorizedVideos.length > 0 
+    ? categorizedVideos.reduce((sum, v) => sum + (v.radicalizationRisk || 0), 0) / categorizedVideos.length
+    : 0;
   avgRiskEl.textContent = avgRisk.toFixed(1);
+  
+  // Update risk meter position (0-5 scale to 0-100%)
+  updateRiskMeter(avgRisk);
 }
 
 // Render sidebar
@@ -513,26 +666,50 @@ function renderVisualization() {
     .attr("pointer-events", "none")
     .style("opacity", 0.9);
 
-  // Append labels
-  const label = svg.append("g")
-    .style("font", "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif")
+  // Append label groups (background + text)
+  const labelGroup = svg.append("g")
     .attr("pointer-events", "none")
-    .attr("text-anchor", "middle")
-    .selectAll("text")
-    .data(root.descendants())
-    .join("text")
+    .selectAll("g")
+    .data(root.descendants().filter(d => d.children && d.depth > 0))
+    .join("g")
+    .attr("transform", d => `translate(${d.x},${d.y})`)
+    .style("opacity", d => d.parent === root ? 1 : 0);
+
+  // Background rectangles for labels
+  const labelBg = labelGroup.append("rect")
+    .attr("fill", "rgba(0, 0, 0, 0.7)")
+    .attr("rx", 6)
+    .attr("ry", 6);
+
+  // Text labels
+  const label = labelGroup.append("text")
+    .style("font", "13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif")
     .style("fill", "#fff")
-    .style("fill-opacity", d => d.parent === root ? 1 : 0)
-    .style("display", d => d.parent === root ? "inline" : "none")
-    .style("font-weight", d => d.children ? "600" : "400")
-    .style("text-shadow", "0 2px 4px rgba(0,0,0,0.5)")
-    .text(d => {
-      if (d.children) {
-        // Category label with count
-        return `${CATEGORY_TAXONOMY[d.data.name]?.label || d.data.name} (${d.children.length})`;
+    .style("font-weight", "600")
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "middle")
+    .text(d => `${CATEGORY_TAXONOMY[d.data.name]?.label || d.data.name} (${d.children.length})`);
+
+  // Function to update label background sizes
+  function updateLabelBackgrounds() {
+    labelGroup.each(function() {
+      const text = d3.select(this).select("text");
+      const textNode = text.node();
+      if (textNode) {
+        const bbox = textNode.getBBox();
+        if (bbox.width > 0) {
+          d3.select(this).select("rect")
+            .attr("x", bbox.x - 8)
+            .attr("y", bbox.y - 4)
+            .attr("width", bbox.width + 16)
+            .attr("height", bbox.height + 8);
+        }
       }
-      return '';
     });
+  }
+
+  // Initial background sizing (delayed to ensure rendering)
+  setTimeout(updateLabelBackgrounds, 100);
 
   // Click on background to zoom out
   svg.on("click", (event) => zoom(event, root));
@@ -544,8 +721,9 @@ function renderVisualization() {
     const k = width / v[2];
     view = v;
 
-    label.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
-    label.style("font-size", d => d.children ? `${Math.min(14 * k, 16)}px` : "10px");
+    // Update label groups position
+    labelGroup.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+    label.style("font-size", `${Math.min(13 * k, 15)}px`);
     
     node.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
     node.attr("r", d => d.r * k);
@@ -566,6 +744,9 @@ function renderVisualization() {
         const d = root.descendants().slice(1)[idx];
         return d ? d.r * k : 0;
       });
+    
+    // Update label background sizes after font change
+    updateLabelBackgrounds();
   }
 
   function zoom(event, d) {
@@ -578,14 +759,14 @@ function renderVisualization() {
         return t => zoomTo(i(t));
       });
 
-    label
+    labelGroup
       .filter(function(d) { 
-        return d.parent === focus || this.style.display === "inline"; 
+        return d.parent === focus || this.style.display === "block"; 
       })
       .transition(transition)
-      .style("fill-opacity", d => d.parent === focus ? 1 : 0)
+      .style("opacity", d => d.parent === focus ? 1 : 0)
       .on("start", function(d) { 
-        if (d.parent === focus) this.style.display = "inline"; 
+        if (d.parent === focus) this.style.display = "block"; 
       })
       .on("end", function(d) { 
         if (d.parent !== focus) this.style.display = "none"; 

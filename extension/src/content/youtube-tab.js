@@ -6,6 +6,7 @@
 
   let tabInjected = false;
   let dashboardVisible = false;
+  let blackoutActive = false;
 
   // Create the BubbleBreak tab element
   function createBubbleBreakTab() {
@@ -378,6 +379,71 @@
     setTimeout(injectTabs, 5000);
   }
 
+  // Update floating button to show blackout status
+  function updateFloatingButtonStatus(isBlackout) {
+    const btn = document.getElementById('bubblebreak-floating-btn');
+    if (!btn) return;
+    
+    const innerDiv = btn.querySelector('div');
+    if (!innerDiv) return;
+    
+    if (isBlackout) {
+      innerDiv.style.background = 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)';
+      innerDiv.style.animation = 'pulse-warning 1.5s infinite';
+      innerDiv.innerHTML = '⚠️';
+      
+      // Add pulse animation if not exists
+      if (!document.getElementById('bubblebreak-pulse-style')) {
+        const style = document.createElement('style');
+        style.id = 'bubblebreak-pulse-style';
+        style.textContent = `
+          @keyframes pulse-warning {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+            50% { transform: scale(1.1); box-shadow: 0 4px 25px rgba(239, 68, 68, 0.6); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    } else {
+      innerDiv.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+      innerDiv.style.animation = '';
+      innerDiv.innerHTML = '🫧';
+    }
+    
+    blackoutActive = isBlackout;
+  }
+  
+  // Check blackout state on load
+  async function checkBlackoutState() {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getBlackoutState' });
+      if (response && response.state) {
+        updateFloatingButtonStatus(response.state.isActive);
+      }
+    } catch (e) {
+      console.log('🫧 [BubbleBreak] Could not check blackout state:', e);
+    }
+  }
+  
+  // Listen for blackout state changes
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'blackoutStateChanged') {
+      console.log('🫧 [BubbleBreak] Tab received blackout state change:', request.state?.isActive);
+      updateFloatingButtonStatus(request.state?.isActive);
+      sendResponse({ received: true });
+    }
+    return true;
+  });
+  
+  // Also listen for storage changes
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.bubblebreak_blackout) {
+      const newState = changes.bubblebreak_blackout.newValue;
+      console.log('🫧 [BubbleBreak] Tab storage change, blackout:', newState?.isActive);
+      updateFloatingButtonStatus(newState?.isActive);
+    }
+  });
+
   // Initialize
   console.log('🫧 [BubbleBreak] YouTube tab injection loaded');
   
@@ -386,6 +452,8 @@
     if (!document.getElementById('bubblebreak-floating-btn')) {
       createFloatingButton();
     }
+    // Check blackout state after button is created
+    setTimeout(checkBlackoutState, 500);
   }, 1000);
   
   // Wait for DOM to be ready

@@ -31,7 +31,7 @@
   "content_scripts": [
     {
       "matches": ["*://www.youtube.com/*"],
-      "js": ["src/content/video-tracker.js", "src/content/youtube-tab.js"],
+      "js": ["src/content/video-tracker.js", "src/content/youtube-tab.js", "src/content/youtube-blackout.js"],
       "run_at": "document_idle"
     },
     {
