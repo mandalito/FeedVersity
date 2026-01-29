@@ -8,16 +8,6 @@
   let dashboardVisible = false;
   let blackoutActive = false;
 
-  // SVG icon for BubbleBreak (bubble/circle design matching YouTube style)
-  const BUBBLEBREAK_ICON = `
-    <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style="pointer-events: none; display: block; width: 24px; height: 24px; fill: currentColor;">
-      <circle cx="12" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="17" cy="16" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="7" cy="17" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="10" cy="8" r="1" fill="currentColor"/>
-    </svg>
-  `;
-
   // Create the BubbleBreak tab element
   function createBubbleBreakTab() {
     const tab = document.createElement('a');
@@ -27,9 +17,7 @@
     tab.style.cssText = 'display: flex !important; text-decoration: none !important;';
     tab.innerHTML = `
       <tp-yt-paper-item class="style-scope ytd-guide-entry-renderer" role="option" tabindex="0" style="display: flex !important; align-items: center !important; padding: 0 24px !important; height: 40px !important;">
-        <yt-icon class="guide-icon style-scope ytd-guide-entry-renderer" style="margin-right: 24px !important; width: 24px !important; height: 24px !important; color: var(--yt-spec-text-primary, #f1f1f1) !important;">
-          ${BUBBLEBREAK_ICON}
-        </yt-icon>
+        <span id="bubblebreak-sidebar-icon" style="margin-right: 24px !important; width: 24px !important; height: 24px !important; font-size: 20px !important; display: flex !important; align-items: center !important; justify-content: center !important;">😊</span>
         <span style="color: var(--yt-spec-text-primary, #f1f1f1) !important; font-size: 14px !important; font-family: 'Roboto', 'Arial', sans-serif !important; line-height: 20px !important;">BubbleBreak</span>
       </tp-yt-paper-item>
     `;
@@ -52,9 +40,7 @@
     mini.style.cssText = 'display: flex !important; flex-direction: column !important; align-items: center !important; text-decoration: none !important;';
     mini.innerHTML = `
       <tp-yt-paper-item class="style-scope ytd-mini-guide-entry-renderer" role="option" tabindex="0" style="display: flex !important; flex-direction: column !important; align-items: center !important; padding: 16px 0 14px !important;">
-        <yt-icon class="guide-icon style-scope ytd-mini-guide-entry-renderer" style="margin-bottom: 6px !important; width: 24px !important; height: 24px !important; color: var(--yt-spec-text-primary, #f1f1f1) !important;">
-          ${BUBBLEBREAK_ICON}
-        </yt-icon>
+        <span id="bubblebreak-mini-icon" style="margin-bottom: 6px !important; width: 24px !important; height: 24px !important; font-size: 20px !important; display: flex !important; align-items: center !important; justify-content: center !important;">😊</span>
         <span style="color: var(--yt-spec-text-secondary, #aaa) !important; font-size: 10px !important; font-family: 'Roboto', 'Arial', sans-serif !important; line-height: 1.2 !important; text-overflow: ellipsis !important; max-width: 64px !important; overflow: hidden !important; white-space: nowrap !important;">Bubble</span>
       </tp-yt-paper-item>
     `;
@@ -145,12 +131,33 @@
     }
   }
 
+  // Get face emoji based on risk level
+  function getRiskFace(avgRisk) {
+    if (avgRisk < 0.5) return { face: '😊', label: 'Very Low Risk' };
+    if (avgRisk < 1.5) return { face: '🙂', label: 'Low Risk' };
+    if (avgRisk < 2.0) return { face: '😐', label: 'Moderate Risk' };
+    if (avgRisk < 2.5) return { face: '😕', label: 'Elevated Risk' };
+    if (avgRisk < 3.5) return { face: '😟', label: 'High Risk' };
+    if (avgRisk < 4.5) return { face: '😰', label: 'Very High Risk' };
+    return { face: '😱', label: 'Severe Risk' };
+  }
+
+  // Get gradient color based on risk level
+  function getRiskGradient(avgRisk) {
+    if (avgRisk < 1.5) return 'linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%)'; // Green
+    if (avgRisk < 2.0) return 'linear-gradient(135deg, #8BC34A 0%, #FFC107 100%)'; // Yellow-green
+    if (avgRisk < 2.5) return 'linear-gradient(135deg, #FFC107 0%, #FF9800 100%)'; // Yellow-orange
+    if (avgRisk < 3.0) return 'linear-gradient(135deg, #FF9800 0%, #FF5722 100%)'; // Orange
+    if (avgRisk < 4.0) return 'linear-gradient(135deg, #FF5722 0%, #f44336 100%)'; // Red-orange
+    return 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'; // Red
+  }
+
   // Create a floating button on the right side
   function createFloatingButton() {
     const btn = document.createElement('div');
     btn.id = 'bubblebreak-floating-btn';
     btn.innerHTML = `
-      <div style="
+      <div class="bubblebreak-face-btn" style="
         position: fixed;
         bottom: 80px;
         right: 20px;
@@ -164,10 +171,10 @@
         cursor: pointer;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         z-index: 9998;
-        transition: transform 0.2s, box-shadow 0.2s;
-        font-size: 24px;
+        transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+        font-size: 26px;
       " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-        🫧
+        😊
       </div>
     `;
     btn.addEventListener('click', toggleDashboard);
@@ -222,9 +229,9 @@
       }
 
       #bubblebreak-dashboard-container {
-        width: 90%;
-        max-width: 1400px;
-        height: 90%;
+        width: 95%;
+        max-width: 1800px;
+        height: 92%;
         background: #0f0f1a;
         border-radius: 16px;
         overflow: hidden;
@@ -391,35 +398,68 @@
     setTimeout(injectTabs, 5000);
   }
 
-  // Update floating button to show blackout status
-  function updateFloatingButtonStatus(isBlackout) {
+  // Update floating button and sidebar icons to show risk level with face
+  function updateFloatingButtonStatus(isBlackout, avgRisk = 0) {
     const btn = document.getElementById('bubblebreak-floating-btn');
-    if (!btn) return;
+    const sidebarIcon = document.getElementById('bubblebreak-sidebar-icon');
+    const miniIcon = document.getElementById('bubblebreak-mini-icon');
     
-    const innerDiv = btn.querySelector('div');
-    if (!innerDiv) return;
+    // Add pulse animation styles if not exists
+    if (!document.getElementById('bubblebreak-pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'bubblebreak-pulse-style';
+      style.textContent = `
+        @keyframes pulse-warning {
+          0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+          50% { transform: scale(1.1); box-shadow: 0 4px 25px rgba(239, 68, 68, 0.6); }
+        }
+        @keyframes pulse-caution {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    let face, gradient;
     
     if (isBlackout) {
-      innerDiv.style.background = 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)';
-      innerDiv.style.animation = 'pulse-warning 1.5s infinite';
-      innerDiv.innerHTML = '⚠️';
-      
-      // Add pulse animation if not exists
-      if (!document.getElementById('bubblebreak-pulse-style')) {
-        const style = document.createElement('style');
-        style.id = 'bubblebreak-pulse-style';
-        style.textContent = `
-          @keyframes pulse-warning {
-            0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
-            50% { transform: scale(1.1); box-shadow: 0 4px 25px rgba(239, 68, 68, 0.6); }
-          }
-        `;
-        document.head.appendChild(style);
-      }
+      // Blackout active - show warning
+      face = '😱';
+      gradient = 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)';
     } else {
-      innerDiv.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-      innerDiv.style.animation = '';
-      innerDiv.innerHTML = '🫧';
+      // Show face based on risk level
+      const riskInfo = getRiskFace(avgRisk);
+      face = riskInfo.face;
+      gradient = getRiskGradient(avgRisk);
+    }
+    
+    // Update floating button
+    if (btn) {
+      const innerDiv = btn.querySelector('div');
+      if (innerDiv) {
+        innerDiv.style.background = gradient;
+        innerDiv.innerHTML = face;
+        
+        if (isBlackout) {
+          innerDiv.style.animation = 'pulse-warning 1.5s infinite';
+          innerDiv.title = 'Filter Bubble Detected! Click to view.';
+        } else {
+          const { label } = getRiskFace(avgRisk);
+          innerDiv.title = `BubbleBreak - ${label} (${avgRisk.toFixed(1)})`;
+          innerDiv.style.animation = avgRisk >= 2.0 ? 'pulse-caution 2s infinite' : '';
+        }
+      }
+    }
+    
+    // Update sidebar icon
+    if (sidebarIcon) {
+      sidebarIcon.innerHTML = face;
+    }
+    
+    // Update mini sidebar icon
+    if (miniIcon) {
+      miniIcon.innerHTML = face;
     }
     
     blackoutActive = isBlackout;
@@ -430,7 +470,7 @@
     try {
       const response = await chrome.runtime.sendMessage({ action: 'getBlackoutState' });
       if (response && response.state) {
-        updateFloatingButtonStatus(response.state.isActive);
+        updateFloatingButtonStatus(response.state.isActive, response.state.avgRisk || 0);
       }
     } catch (e) {
       console.log('🫧 [BubbleBreak] Could not check blackout state:', e);
@@ -440,8 +480,8 @@
   // Listen for blackout state changes
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'blackoutStateChanged') {
-      console.log('🫧 [BubbleBreak] Tab received blackout state change:', request.state?.isActive);
-      updateFloatingButtonStatus(request.state?.isActive);
+      console.log('🫧 [BubbleBreak] Tab received blackout state change:', request.state?.isActive, 'avgRisk:', request.state?.avgRisk);
+      updateFloatingButtonStatus(request.state?.isActive, request.state?.avgRisk || 0);
       sendResponse({ received: true });
     }
     return true;
@@ -451,8 +491,8 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.bubblebreak_blackout) {
       const newState = changes.bubblebreak_blackout.newValue;
-      console.log('🫧 [BubbleBreak] Tab storage change, blackout:', newState?.isActive);
-      updateFloatingButtonStatus(newState?.isActive);
+      console.log('🫧 [BubbleBreak] Tab storage change, blackout:', newState?.isActive, 'avgRisk:', newState?.avgRisk);
+      updateFloatingButtonStatus(newState?.isActive, newState?.avgRisk || 0);
     }
   });
 
