@@ -162,34 +162,98 @@
         duration = durationElement?.textContent?.trim() || '';
       }
 
-      // Get view count
+      // Get view count - extract just the number
       const viewCountElement = document.querySelector(
+        'ytd-video-view-count-renderer span.view-count, ' +
         '#info-strings yt-formatted-string, ' +
         'ytd-video-view-count-renderer span, ' +
         '#info span.view-count'
       );
-      const views = viewCountElement?.textContent?.trim() || '';
+      let views = '';
+      if (viewCountElement) {
+        const viewText = viewCountElement.textContent?.trim() || '';
+        // Extract just the number (handles "1 234 567 vues", "1,234,567 views", etc.)
+        const viewMatch = viewText.match(/[\d\s,.\u00A0]+/);
+        if (viewMatch) {
+          // Clean up: remove spaces, non-breaking spaces, keep only digits
+          views = viewMatch[0].replace(/[\s\u00A0,.]/g, '').trim();
+        }
+      }
 
-      // Get likes count
-      const likesElement = document.querySelector(
-        '#top-level-buttons-computed ytd-toggle-button-renderer:first-child #text, ' +
-        'ytd-menu-renderer yt-formatted-string[aria-label*="like"], ' +
-        '#segmented-like-button button .yt-spec-button-shape-next__button-text-content'
-      );
-      const likes = likesElement?.textContent?.trim() || '';
+      // Get likes count - try multiple selectors for YouTube's changing UI
+      let likes = '';
+      const likesSelectors = [
+        '#segmented-like-button button[aria-label]',
+        'ytd-menu-renderer ytd-toggle-button-renderer button[aria-label*="like" i]',
+        '#top-level-buttons-computed ytd-toggle-button-renderer:first-child button[aria-label]',
+        'like-button-view-model button[aria-label]',
+        '#segmented-like-button .yt-spec-button-shape-next__button-text-content'
+      ];
+      
+      for (const selector of likesSelectors) {
+        const el = document.querySelector(selector);
+        if (el) {
+          // Try aria-label first (most reliable)
+          const ariaLabel = el.getAttribute('aria-label');
+          if (ariaLabel) {
+            const likeMatch = ariaLabel.match(/[\d\s,.\u00A0]+/);
+            if (likeMatch) {
+              likes = likeMatch[0].replace(/[\s\u00A0,.]/g, '').trim();
+              if (likes) break;
+            }
+          }
+          // Fallback to text content
+          const text = el.textContent?.trim();
+          if (text && /\d/.test(text)) {
+            const numMatch = text.match(/[\d\s,.\u00A0]+/);
+            if (numMatch) {
+              likes = numMatch[0].replace(/[\s\u00A0,.]/g, '').trim();
+              if (likes) break;
+            }
+          }
+        }
+      }
 
-      // Get upload date
-      const dateElement = document.querySelector(
-        '#info-strings yt-formatted-string:last-child, ' +
-        'ytd-video-primary-info-renderer #info-strings span, ' +
-        '#description-inline-expander .style-scope.yt-formatted-string'
-      );
+      // Get upload date - try multiple approaches
       let uploadDate = '';
-      if (dateElement) {
-        const dateText = dateElement.textContent;
-        // Look for date patterns like "Jan 15, 2024" or "15 janv. 2024"
-        const dateMatch = dateText?.match(/(\d{1,2}\s+\w+\.?\s+\d{4}|\w+\s+\d{1,2},?\s+\d{4})/);
-        uploadDate = dateMatch ? dateMatch[0] : '';
+      const dateSelectors = [
+        '#info-strings yt-formatted-string',
+        'ytd-video-primary-info-renderer #info-strings span',
+        '#description ytd-video-primary-info-renderer #info-strings yt-formatted-string',
+        'span.style-scope.ytd-video-primary-info-renderer'
+      ];
+      
+      for (const selector of dateSelectors) {
+        const elements = document.querySelectorAll(selector);
+        for (const el of elements) {
+          const text = el.textContent?.trim() || '';
+          // Match various date patterns
+          // English: "Jan 15, 2024", "January 15, 2024"
+          // French: "15 janv. 2024", "15 janvier 2024"
+          // Also "Premiered Jan 15, 2024" or relative dates we skip
+          const dateMatch = text.match(/(\d{1,2}[\s./]\w+[\s./]\d{4}|\w+\s+\d{1,2},?\s+\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/i);
+          if (dateMatch && !text.toLowerCase().includes('view') && !text.toLowerCase().includes('vue')) {
+            uploadDate = dateMatch[0];
+            break;
+          }
+        }
+        if (uploadDate) break;
+      }
+      
+      // If still no date, try to find it in the description area
+      if (!uploadDate) {
+        const descriptionInfo = document.querySelector('#description-inner ytd-video-primary-info-renderer');
+        if (descriptionInfo) {
+          const spans = descriptionInfo.querySelectorAll('span');
+          for (const span of spans) {
+            const text = span.textContent?.trim() || '';
+            const dateMatch = text.match(/(\d{1,2}[\s./]\w+[\s./]\d{4}|\w+\s+\d{1,2},?\s+\d{4})/i);
+            if (dateMatch) {
+              uploadDate = dateMatch[0];
+              break;
+            }
+          }
+        }
       }
 
       // Get subscriber count from channel

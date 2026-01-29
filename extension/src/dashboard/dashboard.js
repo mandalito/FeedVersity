@@ -64,9 +64,14 @@ const btnShowChart = document.getElementById('btnShowChart');
 const chartContainer = document.getElementById('chartContainer');
 const chartStats = document.getElementById('chartStats');
 
+// Theme toggle elements
+const btnToggleTheme = document.getElementById('btnToggleTheme');
+const themeIcon = document.getElementById('themeIcon');
+
 let categorizedVideos = [];
 let hierarchyData = null;
 let showHighRiskOnly = false;
+let isDarkMode = true;
 
 // Custom modal function
 function showModal(options) {
@@ -320,6 +325,51 @@ if (chartModal) {
     }
   });
 }
+
+// Theme toggle functionality
+function setTheme(dark) {
+  isDarkMode = dark;
+  if (dark) {
+    document.body.classList.remove('light-mode');
+    if (themeIcon) themeIcon.textContent = '🌙';
+  } else {
+    document.body.classList.add('light-mode');
+    if (themeIcon) themeIcon.textContent = '☀️';
+  }
+  // Save preference
+  localStorage.setItem('bubblebreak-theme', dark ? 'dark' : 'light');
+  
+  // Update SVG background if it exists
+  const svgEl = document.getElementById('bubbleVizSvg');
+  if (svgEl) {
+    const svgBackground = dark 
+      ? 'radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%)'
+      : 'radial-gradient(circle at center, #f5f7fa 0%, #e4e8ec 100%)';
+    svgEl.style.background = svgBackground;
+  }
+}
+
+function toggleTheme() {
+  setTheme(!isDarkMode);
+}
+
+// Initialize theme from localStorage
+function initTheme() {
+  const savedTheme = localStorage.getItem('bubblebreak-theme');
+  if (savedTheme === 'light') {
+    setTheme(false);
+  } else {
+    setTheme(true);
+  }
+}
+
+// Theme toggle button
+if (btnToggleTheme) {
+  btnToggleTheme.addEventListener('click', toggleTheme);
+}
+
+// Initialize theme on load
+initTheme();
 
 // Export Data button - Export as CSV for research
 const btnExport = document.getElementById('btnExport');
@@ -1034,12 +1084,18 @@ function renderVisualization() {
 
   const root = pack(hierarchyData);
 
-  // Create SVG
+  // Create SVG with theme-aware background
+  const isLightMode = document.body.classList.contains('light-mode');
+  const svgBackground = isLightMode 
+    ? 'radial-gradient(circle at center, #f5f7fa 0%, #e4e8ec 100%)'
+    : 'radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%)';
+  
   const svg = d3.create("svg")
     .attr("viewBox", `-${width / 2} -${height / 2} ${width} ${height}`)
     .attr("width", "100%")
     .attr("height", "100%")
-    .attr("style", `max-width: 100%; height: auto; display: block; background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%); cursor: pointer; border-radius: 20px;`);
+    .attr("id", "bubbleVizSvg")
+    .attr("style", `max-width: 100%; height: auto; display: block; background: ${svgBackground}; cursor: pointer; border-radius: 20px;`);
 
   // Focus tracking
   let focus = root;

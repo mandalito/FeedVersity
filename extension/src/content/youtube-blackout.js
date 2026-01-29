@@ -22,9 +22,33 @@
       display: none !important;
     }
     
-    /* Hide shorts shelf */
+    /* Hide ALL Shorts content */
     .bubblebreak-blackout ytd-reel-shelf-renderer,
-    .bubblebreak-blackout ytd-rich-shelf-renderer[is-shorts] {
+    .bubblebreak-blackout ytd-rich-shelf-renderer[is-shorts],
+    .bubblebreak-blackout ytd-reel-video-renderer,
+    .bubblebreak-blackout ytd-shorts,
+    .bubblebreak-blackout [is-shorts],
+    .bubblebreak-blackout ytd-rich-grid-slim-media {
+      display: none !important;
+    }
+    
+    /* Hide Shorts tab in sidebar */
+    .bubblebreak-blackout ytd-guide-entry-renderer a[title="Shorts"],
+    .bubblebreak-blackout ytd-mini-guide-entry-renderer a[title="Shorts"],
+    .bubblebreak-blackout ytd-guide-entry-renderer a[href="/shorts"],
+    .bubblebreak-blackout ytd-mini-guide-entry-renderer a[href="/shorts"],
+    .bubblebreak-blackout a[href="/shorts"] {
+      display: none !important;
+    }
+    
+    /* Hide Shorts page content completely */
+    .bubblebreak-blackout ytd-browse[page-subtype="shorts"],
+    .bubblebreak-blackout ytd-shorts-player-page {
+      display: none !important;
+    }
+    
+    /* Hide Shorts in search results */
+    .bubblebreak-blackout ytd-reel-item-renderer {
       display: none !important;
     }
     
@@ -291,8 +315,8 @@
     // Add blackout class to body
     document.body.classList.add('bubblebreak-blackout');
     
-    // Show overlay on homepage
-    if (isHomepage()) {
+    // Show overlay on homepage or Shorts page (both need intervention)
+    if (isHomepage() || isShortsPage()) {
       showBlackoutOverlay();
     } else {
       showWarningBadge();
@@ -316,6 +340,11 @@
     return window.location.pathname === '/' || 
            window.location.pathname === '/feed/subscriptions' ||
            window.location.pathname.startsWith('/feed/');
+  }
+  
+  // Check if user is on Shorts page
+  function isShortsPage() {
+    return window.location.pathname.startsWith('/shorts');
   }
   
   // Show the full blackout overlay
