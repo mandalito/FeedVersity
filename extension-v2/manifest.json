@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Feedversity",
+  "version": "2.0.0",
+  "description": "We are what we watch. Track your YouTube diet, see your diversity score, and break out of your filter bubble — all on your device.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Feedversity"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/*"],
+      "js": [
+        "src/shared/mock-data.js",
+        "src/shared/classifier.js",
+        "src/shared/stats.js",
+        "src/content/watch-tracker.js",
+        "src/content/feed-filter.js",
+        "src/content/feed-indicator.js",
+        "src/content/floating-button.js",
+        "src/content/sidebar-entry.js",
+        "src/content/weekly-mirror.js",
+        "src/content/similar-content-banner.js",
+        "src/content/why-this-video.js",
+        "src/content/warm-welcome.js",
+        "src/content/bubblebreak-main.js"
+      ],
+      "css": ["src/styles/tokens.css", "src/styles/bubblebreak.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
