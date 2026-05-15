@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feedversity · Final Presentation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&family=Roboto:wght@400;500;700&display=swap');
+
+:root {
+  --cream:        #FFFBF6;
+  --peach:        #FCEFE1;
+  --peach-deep:   #FBE3D2;
+  --peach-soft:   #FFF7EE;
+  --coral:        #E48060;
+  --coral-deep:   #C95F44;
+  --lavender:     #E8E0F2;
+  --lavender-deep:#C9B8E0;
+  --lavender-ink: #6D4FA0;
+  --mint:         #D9F0DC;
+  --mint-deep:    #A8D4AE;
+  --mint-ink:     #2E7D32;
+  --ink:          #1A1410;
+  --ink-soft:     #2E2520;
+  --muted:        #6B5F58;
+  --faint:        #A89A92;
+  --line:         rgba(26,20,16,0.10);
+  --line-soft:    rgba(26,20,16,0.06);
+  --risk:         #DC2626;
+
+  --cat-tech:       #DC5C4D;
+  --cat-music:      #2563EB;
+  --cat-news:       #EA580C;
+  --cat-politics:   #D97706;
+  --cat-gaming:     #059669;
+  --cat-education:  #6D28D9;
+
+  --shadow-card:  0 1px 4px rgba(26,20,16,0.06), 0 12px 32px rgba(26,20,16,0.06);
+  --shadow-hero:  0 30px 80px rgba(26,20,16,0.14);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100vh; max-height:100vh; overflow:hidden; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  cursor: default;
+}
+
+/* ===== SCENES ===== */
+.scene {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 60px 80px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.6s ease;
+  overflow: hidden;
+}
+.scene.active { opacity: 1; pointer-events: all; }
+.scene.bg-ink   { background: var(--ink); color: var(--cream); }
+.scene.bg-peach { background: var(--peach); }
+.scene.bg-cream { background: var(--cream); }
+
+.step { opacity: 0; transform: translateY(8px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.step.show { opacity: 1; transform: translateY(0); }
+
+/* ===== TYPOGRAPHY ===== */
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 500;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--muted);
+}
+.bg-ink .eyebrow { color: var(--faint); }
+.h-display { font-size: clamp(90px, 11vw, 180px); font-weight: 300; line-height: 1.0; letter-spacing: -0.025em; }
+.h-title   { font-size: clamp(56px, 5.5vw, 88px); font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; }
+.h-sub     { font-size: clamp(36px, 3.3vw, 52px); font-weight: 400; line-height: 1.2; letter-spacing: -0.015em; }
+.body-l    { font-size: clamp(26px, 2.2vw, 34px); font-weight: 400; line-height: 1.45; color: var(--muted); }
+.body-m    { font-size: clamp(22px, 1.9vw, 28px); font-weight: 400; line-height: 1.5; color: var(--muted); }
+.mono      { font-family: 'JetBrains Mono', monospace; }
+.italic    { font-style: italic; }
+.pull {
+  font-style: italic;
+  font-size: clamp(26px, 2.3vw, 34px);
+  color: var(--coral-deep);
+  font-weight: 400;
+  line-height: 1.4;
+}
+.bg-ink .pull { color: var(--coral); }
+
+.title-block { margin-bottom: 40px; text-align: center; }
+.eyebrow-block { margin-bottom: 22px; }
+
+/* =======================================================
+   SCENE 1 — HOOK (3 steps: empty / sentence / strike+watch+credit)
+   ======================================================= */
+.hook-stage {
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.hook-sentence {
+  font-size: clamp(72px, 8vw, 132px);
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  color: var(--cream);
+  line-height: 1.05;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+.hook-sentence.show { opacity: 1; }
+.hook-eat {
+  position: relative;
+  display: inline-block;
+  transition: color 0.6s ease, opacity 0.6s ease;
+}
+.hook-eat::after {
+  content: '';
+  position: absolute;
+  top: 54%; left: -6px; right: -6px;
+  height: 7px;
+  background: var(--coral);
+  border-radius: 4px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.hook-eat.strike::after { transform: scaleX(1); }
+.hook-eat.faded { color: rgba(255,251,246,0.3); }
+.hook-watch-row {
+  margin-top: 40px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s ease 0.2s, transform 0.7s ease 0.2s;
+  font-size: clamp(80px, 9vw, 150px);
+  font-weight: 500;
+  color: var(--coral);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.hook-watch-row.show { opacity: 1; transform: translateY(0); }
+.hook-credit {
+  position: absolute;
+  bottom: 80px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  letter-spacing: 3px;
+  color: var(--faint);
+  opacity: 0;
+  transition: opacity 0.7s ease 0.4s;
+}
+.hook-credit.show { opacity: 1; }
+
+/* =======================================================
+   SCENE 2 — INVISIBLE MEAL (3 steps)
+   YouTube feed visible via align-items: stretch
+   ======================================================= */
+.scene-meal {
+  flex-direction: row !important;
+  gap: 50px;
+  padding: 70px 80px;
+  align-items: stretch !important;
+}
+.meal-left { flex: 1.05; display: flex; flex-direction: column; justify-content: center; gap: 24px; min-height: 0; }
+.meal-right {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #0f0f0f;
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: var(--shadow-card);
+  min-height: 0;
+  align-self: stretch;
+}
+
+.stat-card {
+  background: var(--peach-deep);
+  border-radius: 16px;
+  padding: 24px 30px;
+  display: flex; align-items: center; gap: 28px;
+  box-shadow: var(--shadow-card);
+}
+.stat-num { font-size: 76px; font-weight: 700; color: var(--coral-deep); line-height: 1; letter-spacing: -0.03em; min-width: 140px; }
+.stat-label { font-size: 24px; color: var(--ink-soft); flex: 1; line-height: 1.4; }
+.stat-label small { display: block; font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--faint); margin-top: 4px; letter-spacing: 1px; }
+
+/* YouTube mock */
+.yt-feed { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.yt-feed-header {
+  height: 56px; background: #0f0f0f;
+  display: flex; align-items: center; gap: 24px;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  z-index: 3; flex-shrink: 0;
+}
+.yt-burger { width: 22px; display:flex; flex-direction:column; gap:4px; }
+.yt-burger > div { height: 2px; background: rgba(255,255,255,0.7); border-radius: 1px; }
+.yt-brand { display: flex; align-items: center; gap: 6px; }
+.yt-brand-icon {
+  background: #ff0000; width: 28px; height: 20px;
+  border-radius: 6px;
+  position: relative;
+}
+.yt-brand-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 55%; transform: translate(-50%, -50%);
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent white;
+}
+.yt-brand-text { color: white; font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
+.yt-searchbar {
+  flex: 1; height: 36px;
+  background: #121212;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  max-width: 240px; margin: 0 auto;
+}
+
+.yt-feed-scroll { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+.yt-feed-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 18px;
+  animation: feed-scroll 28s linear infinite;
+}
+@keyframes feed-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+.yt-video { display: flex; flex-direction: column; gap: 8px; }
+.yt-thumb {
+  aspect-ratio: 16/9;
+  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.yt-thumb.t1 { background: linear-gradient(135deg, #4a2818, #2a1308); }
+.yt-thumb.t2 { background: linear-gradient(135deg, #1e3a52, #0e1f2d); }
+.yt-thumb.t3 { background: linear-gradient(135deg, #4a1a3a, #28091e); }
+.yt-thumb.t4 { background: linear-gradient(135deg, #1a3a2a, #0a2018); }
+.yt-thumb.t5 { background: linear-gradient(135deg, #3a3018, #20180a); }
+.yt-thumb.t6 { background: linear-gradient(135deg, #2a1f3a, #14122a); }
+.yt-thumb.t7 { background: linear-gradient(135deg, #3a2818, #1f1408); }
+.yt-thumb.t8 { background: linear-gradient(135deg, #1a2a4a, #0e162a); }
+.yt-duration {
+  position: absolute;
+  bottom: 6px; right: 6px;
+  background: rgba(0,0,0,0.85);
+  color: white;
+  font-family: 'Roboto', sans-serif;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.yt-info { display: flex; gap: 8px; padding-right: 4px; }
+.yt-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #444, #222);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.yt-meta { flex: 1; min-width: 0; }
+.yt-title { height: 8px; background: rgba(255,255,255,0.85); border-radius: 2px; margin-bottom: 5px; }
+.yt-title2 { height: 8px; background: rgba(255,255,255,0.85); border-radius: 2px; width: 70%; margin-bottom: 6px; }
+.yt-channel { height: 6px; background: rgba(255,255,255,0.4); border-radius: 2px; width: 50%; margin-bottom: 3px; }
+.yt-views { height: 5px; background: rgba(255,255,255,0.3); border-radius: 2px; width: 40%; }
+.yt-feed-mask {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 2;
+  background: linear-gradient(to bottom, transparent 55%, rgba(15,15,15,0.95));
+}
+.yt-feed-label {
+  position: absolute; bottom: 20px; left: 24px; right: 24px;
+  z-index: 4; text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+}
+.yt-feed-label strong { color: var(--coral); font-weight: 700; }
+
+/* =======================================================
+   SCENE 3 — THREE EATERS
+   ======================================================= */
+.eaters-row { display: flex; gap: 28px; align-items: stretch; }
+.eater-card {
+  width: 360px; min-height: 480px;
+  background: var(--peach-soft);
+  border-radius: 22px;
+  padding: 38px 30px;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line);
+  position: relative;
+}
+.eater-card.featured { transform: scale(1.06); box-shadow: var(--shadow-hero); border-color: var(--coral); }
+.eater-emoji { font-size: 80px; margin-bottom: 18px; }
+.eater-name { font-size: 36px; font-weight: 700; margin-bottom: 8px; color: var(--ink); letter-spacing: -0.01em; }
+.eater-tag { font-family: 'JetBrains Mono', monospace; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 18px; font-weight: 600; }
+.eater-desc { font-size: 22px; line-height: 1.5; color: var(--ink-soft); flex: 1; margin-bottom: 22px; }
+.eater-desc strong { color: var(--ink); }
+.eater-quote { font-size: 20px; font-style: italic; color: var(--ink-soft); border-left: 3px solid currentColor; padding-left: 14px; line-height: 1.4; }
+.eater-band { position: absolute; top: 0; left: 0; right: 0; height: 6px; border-radius: 22px 22px 0 0; }
+.eaters-footer { margin-top: 36px; font-family: 'JetBrains Mono', monospace; font-size: 20px; color: var(--faint); letter-spacing: 1.5px; text-align: center; }
+
+/* =======================================================
+   SCENE 4 — FIVE SPICES (proper apothecary jars)
+   ======================================================= */
+.spices-row { display: flex; gap: 28px; align-items: flex-end; justify-content: center; }
+.spice-jar { width: 240px; position: relative; display: flex; flex-direction: column; align-items: center; }
+.spice-cork {
+  width: 120px; height: 38px;
+  background: linear-gradient(180deg, #c08a52 0%, #9c6a3a 70%, #7a4f28 100%);
+  border-radius: 8px 8px 4px 4px;
+  position: relative;
+  margin-bottom: -6px;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08);
+  z-index: 2;
+}
+.spice-cork::before {
+  content: ''; position: absolute; top: 5px; left: 10px; right: 10px;
+  height: 4px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.3), transparent);
+  border-radius: 2px;
+}
+.spice-glass {
+  width: 100%;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.85) 0%,
+    rgba(255,251,246,0.82) 15%,
+    rgba(255,251,246,0.95) 55%,
+    rgba(255,251,246,0.88) 90%,
+    rgba(232,220,200,0.85) 100%);
+  border-radius: 12px 12px 24px 24px;
+  border: 1px solid rgba(26,20,16,0.14);
+  padding: 32px 18px 24px;
+  min-height: 360px;
+  position: relative;
+  box-shadow:
+    inset 8px 0 14px -6px rgba(255,255,255,0.95),
+    inset -10px 0 18px -10px rgba(26,20,16,0.12),
+    0 10px 30px rgba(26,20,16,0.10);
+  display: flex; flex-direction: column;
+}
+.spice-glass::before {
+  content: ''; position: absolute;
+  top: 18px; bottom: 80px; left: 16px;
+  width: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.2));
+  border-radius: 5px;
+  opacity: 0.8;
+}
+.spice-label {
+  background: #f4eadc;
+  border: 1px dashed rgba(150,100,60,0.5);
+  border-radius: 6px;
+  padding: 18px 14px;
+  text-align: center;
+  position: relative; z-index: 1;
+  box-shadow: 0 3px 6px rgba(26,20,16,0.08), inset 0 1px 0 rgba(255,255,255,0.5);
+  margin-top: 14px;
+}
+.spice-label::before, .spice-label::after {
+  content: ''; position: absolute;
+  top: -8px;
+  width: 12px; height: 12px;
+  background: #c08a52;
+  border-radius: 50%;
+  box-shadow: inset -2px -1px 2px rgba(0,0,0,0.3);
+}
+.spice-label::before { left: 12px; }
+.spice-label::after { right: 12px; }
+.spice-num { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; letter-spacing: 2px; margin-bottom: 8px; }
+.spice-title { font-size: 24px; font-weight: 700; color: var(--ink); margin-bottom: 10px; letter-spacing: -0.01em; line-height: 1.15; }
+.spice-desc { font-size: 18px; line-height: 1.45; color: var(--ink-soft); font-style: italic; }
+.spice-tag {
+  position: absolute; bottom: 18px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px; letter-spacing: 2.5px;
+  color: var(--muted); font-weight: 600;
+}
+
+/* =======================================================
+   SCENE 5 — THE PIVOT (3 rows, no overlap)
+   Row 1: title (peach), Row 2: mocks (split), Row 3: table (peach)
+   ======================================================= */
+.scene-pivot { padding: 0 !important; }
+.pivot-wrap {
+  display: flex; flex-direction: column;
+  width: 100%; height: 100%;
+  background: var(--peach);
+}
+.pivot-title-row {
+  padding: 36px 60px 24px;
+  text-align: center;
+}
+.pivot-title-row .eyebrow { color: var(--muted); }
+.pivot-title-row h2 {
+  font-size: clamp(40px, 4vw, 60px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: 14px;
+  color: var(--ink);
+}
+.pivot-title-row h2 .accent { color: var(--coral-deep); font-style: italic; }
+
+.pivot-mocks-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: linear-gradient(90deg, var(--ink) 0 50%, var(--peach) 50% 100%);
+  padding: 50px 0 60px;
+  flex: 1 1 auto;
+  align-items: center;
+}
+.pivot-side {
+  padding: 0 60px;
+  display: flex; flex-direction: column; gap: 24px; align-items: center;
+}
+.pivot-side-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; letter-spacing: 2.5px; font-weight: 600;
+}
+.pivot-side-label.l { color: var(--coral); }
+.pivot-side-label.r { color: var(--coral-deep); }
+.pivot-side-quote { font-size: 40px; font-weight: 700; text-align: center; letter-spacing: -0.015em; }
+.pivot-side-quote.l { color: var(--cream); }
+.pivot-side-quote.r { color: var(--ink); }
+.pivot-mock-card {
+  width: 100%; max-width: 540px;
+  border-radius: 18px;
+  padding: 32px 32px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.pivot-mock-v1 { background: #1a0a08; border: 2px solid rgba(220,38,38,0.45); }
+.pivot-v1-warn {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 24px; color: var(--risk); font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.pivot-v1-warn-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--risk); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 22px;
+}
+.pivot-v1-bar-row { display: flex; gap: 18px; align-items: center; }
+.pivot-v1-bar { flex: 1; height: 18px; background: rgba(255,255,255,0.08); border-radius: 9px; overflow: hidden; }
+.pivot-v1-bar > div { height: 100%; width: 82%; background: var(--risk); }
+.pivot-v1-score { font-family: 'JetBrains Mono', monospace; font-size: 22px; color: var(--risk); font-weight: 700; }
+.pivot-v1-note { font-family: 'JetBrains Mono', monospace; font-size: 18px; color: rgba(255,255,255,0.45); letter-spacing: 0.3px; }
+
+.pivot-mock-v2 {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+}
+.pivot-v2-island {
+  align-self: flex-start;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 14px 28px 14px 20px;
+  display: inline-flex; align-items: center; gap: 14px;
+  box-shadow: 0 6px 18px rgba(26,20,16,0.08);
+}
+.pivot-v2-island .emoji { font-size: 38px; }
+.pivot-v2-island .label { font-size: 22px; color: var(--ink); font-weight: 500; }
+.pivot-v2-msg { font-size: 24px; color: var(--ink); font-weight: 500; }
+.pivot-v2-note { font-family: 'JetBrains Mono', monospace; font-size: 18px; color: var(--faint); letter-spacing: 0.3px; }
+
+.pivot-table-row {
+  background: linear-gradient(90deg, var(--ink) 0 50%, var(--peach) 50% 100%);
+  padding: 20px 0 40px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pivot-rows-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  justify-content: space-around;
+}
+.pivot-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  position: relative;
+  padding: 6px 0;
+  font-size: 22px;
+}
+.pivot-row .l {
+  color: rgba(255,251,246,0.55);
+  text-decoration: line-through;
+  text-decoration-color: rgba(228, 128, 96, 0.65);
+  text-decoration-thickness: 2px;
+  text-align: right;
+  padding-right: 60px;
+}
+.pivot-row .arrow {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--coral);
+  font-size: 26px;
+  font-weight: 400;
+  z-index: 2;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pivot-row .r {
+  color: var(--ink);
+  font-weight: 500;
+  padding-left: 60px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.pivot-row .r .f {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--coral-deep);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+/* =======================================================
+   SCENE 6 — RECIPE
+   ======================================================= */
+.recipe-grid {
+  display: grid;
+  grid-template-columns: 360px 200px 440px;
+  gap: 0; align-items: stretch;
+  width: 1000px; max-width: 1000px;
+  margin: 0 auto;
+  height: 480px;
+  justify-content: center;
+}
+.recipe-col { display: flex; flex-direction: column; }
+.recipe-col.left { justify-content: space-between; align-items: stretch; }
+.recipe-col.right { justify-content: space-around; align-items: stretch; }
+.ingredient {
+  background: var(--peach-deep);
+  padding: 0 22px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 500;
+  text-align: center;
+  height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  white-space: nowrap;
+}
+.recipe-arrows-svg { width: 100%; height: 100%; display: block; }
+.dish {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 26px;
+  display: flex; align-items: center; gap: 18px;
+  box-shadow: var(--shadow-card);
+}
+.dish-emoji { font-size: 50px; }
+.dish-body { flex: 1; }
+.dish-title { font-size: 22px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.01em; }
+.dish-meta { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--coral-deep); letter-spacing: 1.5px; font-weight: 600; }
+
+/* =======================================================
+   SCENE 7 — LIVE DEMO
+   ======================================================= */
+.demo-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; }
+.demo-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 22px; letter-spacing: 3px; color: var(--coral-deep); font-weight: 600; }
+.demo-title { font-size: clamp(100px, 12vw, 200px); font-weight: 700; letter-spacing: -0.035em; line-height: 1; }
+.demo-title .accent { color: var(--coral); }
+.demo-sub { font-size: 32px; color: var(--muted); text-align: center; max-width: 1000px; line-height: 1.4; }
+.demo-icons-row { display: flex; gap: 40px; align-items: center; margin-top: 20px; }
+.demo-icon-block { display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 130px; }
+.demo-icon-emoji { font-size: 60px; }
+.demo-icon-label { font-family: 'JetBrains Mono', monospace; font-size: 16px; letter-spacing: 1.5px; color: var(--muted); text-align: center; font-weight: 600; line-height: 1.2; }
+.demo-icons-row .arrow { color: var(--coral); font-size: 34px; opacity: 0.5; }
+
+/* =======================================================
+   SCENE 8 — TASTING
+   ======================================================= */
+.tasting-stage { display: flex; flex-direction: column; align-items: center; gap: 50px; width: 100%; max-width: 1300px; }
+.participants-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; width: 100%; }
+.p-card {
+  background: var(--peach-soft);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 18px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  position: relative;
+  min-height: 240px;
+  justify-content: flex-start;
+}
+.p-card.target { border: 2px solid var(--coral); background: var(--peach); }
+.p-card .p-avatar {
+  width: 76px; height: 76px;
+  border-radius: 50%;
+  background: var(--peach-deep);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px;
+  border: 2px solid var(--line);
+}
+.p-card.target .p-avatar { background: var(--coral); border-color: var(--coral-deep); }
+.p-card .p-id-big { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; color: var(--coral-deep); letter-spacing: 1px; margin-top: 4px; }
+.p-card .p-profile { font-size: 19px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.p-card .p-hours { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--muted); margin-top: 2px; }
+.p-card.target::after {
+  content: 'TARGET';
+  position: absolute; top: -12px; right: 12px;
+  background: var(--coral); color: white;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 700; letter-spacing: 1.5px;
+  padding: 4px 10px; border-radius: 999px;
+}
+
+.timeline { width: 100%; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; margin-top: 12px; }
+.timeline::before { content: ''; position: absolute; top: 38px; left: 60px; right: 60px; height: 3px; background: var(--coral); z-index: 0; }
+.tl-step { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1; }
+.tl-dot {
+  width: 76px; height: 76px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 3px solid var(--coral);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px; font-weight: 700;
+  color: var(--coral-deep);
+}
+.tl-title { margin-top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: var(--coral-deep); text-align: center; }
+.tl-time { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--muted); margin-top: 4px; }
+.tl-desc { margin-top: 8px; font-size: 18px; color: var(--ink-soft); text-align: center; line-height: 1.35; max-width: 200px; }
+
+/* =======================================================
+   SCENE 9 — QUANTITATIVE
+   ======================================================= */
+.sus-stage { display: flex; flex-direction: column; width: 100%; max-width: 1200px; gap: 24px; align-items: center; }
+.sus-meaning {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  color: var(--faint);
+  letter-spacing: 1.5px;
+  margin-top: 8px;
+  text-transform: none;
+  font-style: italic;
+}
+.sus-headline {
+  font-size: clamp(42px, 4vw, 60px);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+.sus-headline .pos { color: var(--mint-ink); }
+.sus-bars {
+  display: flex; flex-direction: column; gap: 14px;
+  width: 100%;
+  background: var(--cream);
+  padding: 28px 32px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+}
+.sus-bar-row { display: grid; grid-template-columns: 60px 1fr 240px 100px; gap: 16px; align-items: center; }
+.sus-bar-id { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--ink); }
+.sus-bar-row.target .sus-bar-id { color: var(--mint-ink); }
+.sus-bar-track {
+  position: relative;
+  height: 36px;
+  background: var(--peach-soft);
+  border-radius: 6px;
+  overflow: visible;
+}
+.sus-bar-track::before { content: ''; position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--ink-soft); opacity: 0.4; }
+.sus-bar-fill {
+  position: absolute;
+  top: 4px; bottom: 4px;
+  background: var(--muted);
+  border-radius: 4px;
+  display: flex; align-items: center;
+  padding: 0 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px; font-weight: 700;
+  color: white;
+}
+.sus-bar-fill.pos { background: var(--mint-deep); color: var(--ink); justify-content: flex-end; }
+.sus-bar-profile { font-size: 20px; color: var(--ink-soft); }
+.sus-bar-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; text-align: right; }
+.sus-bar-value.pos { color: var(--mint-ink); }
+.sus-bar-value.neg { color: var(--muted); }
+
+.sus-customs { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; width: 100%; }
+.sus-custom-card {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 26px;
+  display: flex; align-items: center; gap: 22px;
+  box-shadow: var(--shadow-card);
+}
+.sus-custom-big { font-size: 64px; font-weight: 700; color: var(--coral-deep); line-height: 1; letter-spacing: -0.03em; }
+.sus-custom-big span { font-size: 26px; color: var(--muted); font-weight: 500; }
+.sus-custom-body { flex: 1; }
+.sus-custom-label { font-family: 'JetBrains Mono', monospace; font-size: 17px; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.sus-custom-desc { font-size: 21px; color: var(--ink-soft); line-height: 1.4; }
+
+.sus-takeaway {
+  font-style: italic;
+  font-size: 24px;
+  color: var(--muted);
+  text-align: center;
+  max-width: 1100px;
+  line-height: 1.4;
+}
+.sus-takeaway strong { color: var(--mint-ink); font-style: normal; }
+
+/* =======================================================
+   SCENE 10 — AUDIENCE PARADOX
+   ======================================================= */
+.paradox-stage {
+  width: 100%; max-width: 1400px;
+  text-align: left;
+  position: relative;
+  min-height: 60vh;
+  display: flex; align-items: center;
+}
+.paradox-quote {
+  font-style: italic;
+  font-size: clamp(32px, 3.6vw, 54px);
+  font-weight: 300;
+  line-height: 1.3;
+  color: var(--cream);
+  letter-spacing: -0.01em;
+  display: none;
+  width: 100%;
+}
+.paradox-quote.active { display: block; }
+.paradox-quote .speaker {
+  display: block; font-style: normal;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  color: var(--coral);
+  letter-spacing: 2px;
+  margin-top: 24px;
+  font-weight: 600;
+}
+.paradox-count {
+  font-size: clamp(180px, 22vw, 360px);
+  font-weight: 700;
+  color: var(--coral);
+  letter-spacing: -0.04em;
+  text-align: center;
+  width: 100%;
+  line-height: 1;
+  display: none;
+}
+.paradox-count.active { display: block; }
+.paradox-count .num { display: inline-block; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.paradox-count .of { font-size: 0.45em; color: var(--cream); opacity: 0.5; }
+.paradox-count-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; color: var(--cream);
+  letter-spacing: 2.5px;
+  margin-top: 24px;
+  text-align: center;
+  opacity: 0.85;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.paradox-reveal { display: none; text-align: center; width: 100%; }
+.paradox-reveal.active { display: block; }
+.paradox-reveal .pre {
+  font-style: italic;
+  font-size: clamp(26px, 2.4vw, 36px);
+  color: var(--cream);
+  margin-bottom: 36px;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+.paradox-reveal .punch {
+  display: flex; flex-direction: column;
+  gap: 18px;
+  align-items: center;
+}
+.paradox-reveal .punch-line {
+  font-size: clamp(28px, 2.8vw, 42px);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--cream);
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+.paradox-reveal .punch-line span { color: var(--coral); font-weight: 700; }
+.paradox-reveal .label {
+  margin-top: 40px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  color: var(--faint);
+  letter-spacing: 3px;
+  font-weight: 700;
+}
+
+/* =======================================================
+   SCENE 11 — REPOSITIONING
+   ======================================================= */
+.repos-cards { display: flex; gap: 32px; width: 100%; max-width: 1300px; }
+.repos-card {
+  flex: 1; padding: 36px 34px;
+  border-radius: 22px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.repos-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; }
+.repos-card.guardians::before { background: var(--lavender-deep); }
+.repos-card.teens::before     { background: var(--mint-deep); }
+.repos-emoji { font-size: 72px; }
+.repos-title { font-size: 40px; font-weight: 700; letter-spacing: -0.015em; }
+.repos-sub { font-family: 'JetBrains Mono', monospace; font-size: 18px; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; }
+.repos-desc { font-size: 24px; color: var(--ink-soft); line-height: 1.5; }
+.repos-desc strong { color: var(--ink); }
+.repos-quote { font-size: 20px; font-style: italic; color: var(--muted); border-left: 3px solid var(--coral); padding-left: 16px; line-height: 1.45; }
+
+.implications {
+  width: 100%; max-width: 1300px;
+  background: var(--peach-deep);
+  border-radius: 18px;
+  padding: 30px 36px;
+  margin-top: 28px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 36px;
+}
+.impl-item { font-size: 21px; line-height: 1.5; color: var(--ink-soft); }
+.impl-item strong {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--coral-deep);
+  margin-bottom: 10px;
+  letter-spacing: 1.5px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* =======================================================
+   SCENE 12 — REFLECTION
+   ======================================================= */
+.reflection-main {
+  font-style: italic;
+  font-size: clamp(36px, 3.6vw, 56px);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink);
+  max-width: 1200px;
+  text-align: center;
+  letter-spacing: -0.015em;
+}
+.reflection-sub {
+  font-size: clamp(24px, 2.2vw, 32px);
+  color: var(--muted);
+  max-width: 1000px;
+  text-align: center;
+  margin-top: 30px;
+  line-height: 1.5;
+}
+.reflection-sub strong { color: var(--ink); }
+.reflection-cols {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  margin-top: 50px;
+  width: 100%; max-width: 1200px;
+}
+.ref-col h4 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px; letter-spacing: 2.5px;
+  color: var(--coral-deep); margin-bottom: 18px;
+  font-weight: 700;
+}
+.ref-col ul { list-style: none; }
+.ref-col li {
+  font-size: 20px; padding: 12px 0;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line-soft);
+  line-height: 1.4;
+}
+.ref-col li strong { color: var(--ink); font-weight: 600; }
+
+/* =======================================================
+   SCENE 13 — CLOSE
+   ======================================================= */
+.close-stage {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px;
+  width: 100%;
+}
+.close-emoji-row {
+  font-size: clamp(72px, 8vw, 120px);
+  display: flex; align-items: center; gap: 30px;
+  justify-content: center;
+}
+.close-arrow { color: var(--coral); font-size: 44px; opacity: 0.5; }
+.close-tagline {
+  font-style: italic;
+  font-size: clamp(36px, 3.8vw, 56px);
+  font-weight: 300;
+  color: var(--cream);
+  text-align: center;
+  max-width: 1100px;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+.close-tagline span.accent { color: var(--coral); font-weight: 500; font-style: italic; }
+
+.close-cta {
+  margin-top: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+}
+.close-cta-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  letter-spacing: 3px;
+  color: var(--coral);
+  font-weight: 700;
+}
+.close-cta-qr {
+  width: 220px; height: 220px;
+  background: var(--cream);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.close-cta-qr img { width: 100%; height: 100%; object-fit: contain; }
+.close-cta-qr svg { width: 100%; height: 100%; }
+.close-cta-url {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--cream);
+  letter-spacing: 1.5px;
+}
+.close-team {
+  margin-top: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  color: var(--faint);
+  letter-spacing: 2px;
+  text-align: center;
+}
+.close-team strong { color: var(--coral); font-weight: 700; }
+
+</style>
+</head>
+<body>
+
+<!-- ============ SCENE 1 — HOOK ============ -->
+<section class="scene bg-ink" id="sc1">
+  <div class="hook-stage">
+    <div class="hook-sentence">
+      We are what we <span class="hook-eat">eat</span>.
+    </div>
+    <div class="hook-watch-row">
+      We are what we <span style="color:var(--coral)">watch</span>.
+    </div>
+  </div>
+  <div class="hook-credit">
+    FEEDVERSITY &nbsp;&middot;&nbsp; UNIL MScIS &nbsp;&middot;&nbsp; GROUP D &nbsp;&middot;&nbsp; SPRING 2026
+  </div>
+</section>
+
+<!-- ============ SCENE 2 — INVISIBLE MEAL ============ -->
+<section class="scene bg-peach scene-meal" id="sc2">
+  <div class="meal-left">
+    <div class="step eyebrow" data-s="0">THE INVISIBLE MEAL</div>
+    <div class="step h-title" data-s="0">Most of what you<br>eat, but you didn't<br>order.</div>
+    <div style="display:flex; flex-direction:column; gap:18px; margin-top:14px">
+      <div class="step stat-card" data-s="1">
+        <div class="stat-num">70%</div>
+        <div class="stat-label">of YouTube consumption is algorithmically driven<small>HAROON ET AL., 2022</small></div>
+      </div>
+      <div class="step stat-card" data-s="1">
+        <div class="stat-num">78%</div>
+        <div class="stat-label">of our screener (n=32) discovers videos via the homepage</div>
+      </div>
+      <div class="step stat-card" data-s="1">
+        <div class="stat-num">50%</div>
+        <div class="stat-label">had never heard of the <em>filter bubble</em> concept</div>
+      </div>
+    </div>
+    <div class="step pull" data-s="2" style="margin-top:22px">"It's not at all to please me, it's only to hook me in." <span class="mono" style="font-style:normal; font-size:18px; color:var(--faint); letter-spacing:1.5px">— from one of our 11 interviews</span></div>
+  </div>
+  <div class="meal-right">
+    <div class="yt-feed">
+      <div class="yt-feed-header">
+        <div class="yt-burger"><div></div><div></div><div></div></div>
+        <div class="yt-brand">
+          <div class="yt-brand-icon"></div>
+          <div class="yt-brand-text">YouTube</div>
+        </div>
+        <div class="yt-searchbar"></div>
+      </div>
+      <div class="yt-feed-scroll">
+        <div class="yt-feed-inner">
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#4a2818,#2a1308)"><div class="yt-duration">3:32</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/9bZkp7q19f0/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#1e3a52,#0e1f2d)"><div class="yt-duration">4:13</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/kJQP7kiw5Fk/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#4a1a3a,#28091e)"><div class="yt-duration">4:42</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/aircAruvnKk/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#1a3a2a,#0a2018)"><div class="yt-duration">19:13</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/xuCn8ux2gbs/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#3a3018,#20180a)"><div class="yt-duration">19:25</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/jNQXAC9IVRw/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#2a1f3a,#14122a)"><div class="yt-duration">0:19</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/h6fcK_fRYaI/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#3a2818,#1f1408)"><div class="yt-duration">7:48</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/fJ9rUzIMcZQ/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#1a2a4a,#0e162a)"><div class="yt-duration">5:55</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#4a2818,#2a1308)"><div class="yt-duration">3:32</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/9bZkp7q19f0/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#1e3a52,#0e1f2d)"><div class="yt-duration">4:13</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/kJQP7kiw5Fk/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#4a1a3a,#28091e)"><div class="yt-duration">4:42</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/aircAruvnKk/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#1a3a2a,#0a2018)"><div class="yt-duration">19:13</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/xuCn8ux2gbs/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#3a3018,#20180a)"><div class="yt-duration">19:25</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/jNQXAC9IVRw/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#2a1f3a,#14122a)"><div class="yt-duration">0:19</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/h6fcK_fRYaI/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#3a2818,#1f1408)"><div class="yt-duration">7:48</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+          <div class="yt-video"><div class="yt-thumb" style="background:url('https://i.ytimg.com/vi/fJ9rUzIMcZQ/mqdefault.jpg') center/cover no-repeat, linear-gradient(135deg,#1a2a4a,#0e162a)"><div class="yt-duration">5:55</div></div><div class="yt-info"><div class="yt-avatar"></div><div class="yt-meta"><div class="yt-title"></div><div class="yt-title2"></div><div class="yt-channel"></div><div class="yt-views"></div></div></div></div>
+        </div>
+      </div>
+      <div class="yt-feed-mask"></div>
+      <div class="yt-feed-label">UNORDERED &nbsp;<strong>·</strong>&nbsp; UNSEEN &nbsp;<strong>·</strong>&nbsp; UNQUESTIONED</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 3 — THREE EATERS ============ -->
+<section class="scene bg-cream" id="sc3">
+  <div class="title-block">
+    <div class="step eyebrow eyebrow-block" data-s="0">THE 11 INTERVIEWS &middot; THREE PROFILES</div>
+    <div class="step h-title" data-s="0">Three ways to eat YouTube.</div>
+  </div>
+  <div class="eaters-row">
+    <div class="step eater-card" data-s="1">
+      <div class="eater-band" style="background:var(--lavender-deep)"></div>
+      <div class="eater-emoji">🥢</div>
+      <div class="eater-name">Search-driven</div>
+      <div class="eater-tag" style="color:var(--lavender-ink)">PICKS DELIBERATELY</div>
+      <div class="eater-desc">Treats YouTube as a tool. Bypasses the homepage for the search bar or subscriptions.</div>
+      <div class="eater-quote" style="color:var(--lavender-ink)">"I look for something specific, or I don't open it."</div>
+    </div>
+    <div class="step eater-card featured" data-s="1">
+      <div class="eater-band" style="background:var(--coral)"></div>
+      <div class="eater-emoji">🍴</div>
+      <div class="eater-name">Passive</div>
+      <div class="eater-tag" style="color:var(--coral-deep)">EATS WHAT IS SERVED &middot; OUR TARGET</div>
+      <div class="eater-desc">Opens YouTube out of habit. Lets the homepage guide long sessions.<br><br><strong>Majority of our sample, confirmed at scale (78%).</strong></div>
+      <div class="eater-quote" style="color:var(--coral-deep)">"I open it out of habit, I let it run."</div>
+    </div>
+    <div class="step eater-card" data-s="1">
+      <div class="eater-band" style="background:var(--mint-deep)"></div>
+      <div class="eater-emoji">🧐</div>
+      <div class="eater-name">Conscious</div>
+      <div class="eater-tag" style="color:var(--mint-ink)">TASTES CRITICALLY</div>
+      <div class="eater-desc">Explicit awareness. Acts on it: bans Shorts, uses <em>don't recommend</em>, considers deleting the app.</div>
+      <div class="eater-quote" style="color:var(--mint-ink)">"I'm trapped in a negative political bubble."</div>
+    </div>
+  </div>
+  <div class="step eaters-footer" data-s="1">+ ONE ENTERTAINMENT-ONLY EDGE CASE &middot; SHARPENED THE TOOL'S SCOPE</div>
+</section>
+
+<!-- ============ SCENE 4 — FIVE SPICES ============ -->
+<section class="scene bg-peach" id="sc4">
+  <div class="title-block">
+    <div class="step eyebrow eyebrow-block" data-s="0">FIVE TRANSVERSAL FINDINGS</div>
+    <div class="step h-title" data-s="0">Five spices, one paradox to come.</div>
+  </div>
+  <div class="spices-row">
+    <div class="step spice-jar" data-s="1">
+      <div class="spice-cork"></div>
+      <div class="spice-glass">
+        <div class="spice-label">
+          <div class="spice-num" style="color:var(--lavender-ink)">F1</div>
+          <div class="spice-title">Awareness</div>
+          <div class="spice-desc">50% never heard of the filter bubble.</div>
+        </div>
+        <div class="spice-tag">UNEVEN</div>
+      </div>
+    </div>
+    <div class="step spice-jar" data-s="1">
+      <div class="spice-cork"></div>
+      <div class="spice-glass">
+        <div class="spice-label">
+          <div class="spice-num" style="color:var(--coral-deep)">F2</div>
+          <div class="spice-title">Passivity</div>
+          <div class="spice-desc">78% discover through the homepage.</div>
+        </div>
+        <div class="spice-tag">DOMINANT</div>
+      </div>
+    </div>
+    <div class="step spice-jar" data-s="1">
+      <div class="spice-cork"></div>
+      <div class="spice-glass">
+        <div class="spice-label">
+          <div class="spice-num" style="color:var(--mint-ink)">F3</div>
+          <div class="spice-title">Transparency &gt; Control</div>
+          <div class="spice-desc">Users want to know <strong>why</strong>, not override.</div>
+        </div>
+        <div class="spice-tag">CORE NEED</div>
+      </div>
+    </div>
+    <div class="step spice-jar" data-s="1">
+      <div class="spice-cork"></div>
+      <div class="spice-glass">
+        <div class="spice-label">
+          <div class="spice-num" style="color:var(--lavender-ink)">F4</div>
+          <div class="spice-title">Legitimacy</div>
+          <div class="spice-desc">"Who decides what counts as risky?"</div>
+        </div>
+        <div class="spice-tag">STIGMA RISK</div>
+      </div>
+    </div>
+    <div class="step spice-jar" data-s="1">
+      <div class="spice-cork"></div>
+      <div class="spice-glass">
+        <div class="spice-label">
+          <div class="spice-num" style="color:var(--coral-deep)">F5</div>
+          <div class="spice-title">Adoption gap</div>
+          <div class="spice-desc">Most vulnerable, least likely to install.</div>
+        </div>
+        <div class="spice-tag">TRUST GAP</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 5 — THE PIVOT ============ -->
+<section class="scene scene-pivot bg-peach" id="sc5">
+  <div class="pivot-wrap">
+    <div class="pivot-title-row">
+      <div class="step eyebrow" data-s="0">THE PIVOT</div>
+      <h2 class="step" data-s="0">"We had a working prototype. <span class="accent">Then we listened."</span></h2>
+    </div>
+    <div class="pivot-mocks-row">
+      <div class="pivot-side">
+        <div class="step pivot-side-label l" data-s="1">BUBBLEBREAK v1 &middot; JANUARY 2026</div>
+        <div class="step pivot-side-quote l" data-s="1">"You are at risk."</div>
+        <div class="step pivot-mock-card pivot-mock-v1" data-s="1">
+          <div class="pivot-v1-warn">
+            <div class="pivot-v1-warn-icon">!</div>
+            <span>RECOMMENDATIONS NARROWING</span>
+          </div>
+          <div class="pivot-v1-bar-row">
+            <span class="pivot-v1-score">RISK 4/5</span>
+            <div class="pivot-v1-bar"><div></div></div>
+          </div>
+          <div class="pivot-v1-note">openai api &middot; cloud dependency &middot; active blackout</div>
+        </div>
+      </div>
+      <div class="pivot-side">
+        <div class="step pivot-side-label r" data-s="1">FEEDVERSITY v2 &middot; MAY 2026</div>
+        <div class="step pivot-side-quote r" data-s="1">"Here is what you've been eating."</div>
+        <div class="step pivot-mock-card pivot-mock-v2" data-s="1">
+          <div class="pivot-v2-island">
+            <span class="emoji">🥗</span>
+            <span class="label">Mostly Tech &middot; balanced</span>
+          </div>
+          <div class="pivot-v2-msg">Diet metaphor &middot; 15 neutral categories</div>
+          <div class="pivot-v2-note">local classifier &middot; nothing leaves your browser</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 6 — RECIPE ============ -->
+<section class="scene bg-cream" id="sc6">
+  <div class="title-block">
+    <div class="step eyebrow eyebrow-block" data-s="0">FROM FIVE INGREDIENTS TO THREE DISHES</div>
+    <div class="step h-title" data-s="0">Five design goals, simmered to three.</div>
+  </div>
+  <div class="recipe-grid">
+    <div class="recipe-col left step" data-s="1">
+      <div class="ingredient">DG1 &middot; Make invisible visible</div>
+      <div class="ingredient">DG2 &middot; Explain, don't measure</div>
+      <div class="ingredient">DG3 &middot; Fit into existing UX</div>
+      <div class="ingredient">DG4 &middot; Enable diversification</div>
+      <div class="ingredient">DG5 &middot; Build visible legitimacy</div>
+    </div>
+    <div class="step" data-s="2" style="position:relative">
+      <svg class="recipe-arrows-svg" viewBox="0 0 200 480" preserveAspectRatio="none">
+        <!-- 5 ingredients evenly spaced over 480px height, 56px tall each: centers at 28, 134, 240, 346, 452 -->
+        <!-- 3 dishes via justify-content: space-around in a 480px column → centers at 80, 240, 400 -->
+        <path d="M 0 28 C 100 28, 100 80, 200 80" stroke="var(--coral)" stroke-width="2.5" fill="none" opacity="0.6"/>
+        <path d="M 0 134 C 100 134, 100 80, 200 80" stroke="var(--coral)" stroke-width="2.5" fill="none" opacity="0.6"/>
+        <path d="M 0 240 C 100 240, 100 240, 200 240" stroke="var(--coral)" stroke-width="2.5" fill="none" opacity="0.6"/>
+        <path d="M 0 346 C 100 346, 100 240, 200 240" stroke="var(--coral)" stroke-width="2.5" fill="none" opacity="0.6"/>
+        <path d="M 0 452 C 100 452, 100 400, 200 400" stroke="var(--coral)" stroke-width="2.5" fill="none" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="recipe-col right step" data-s="2">
+      <div class="dish">
+        <div class="dish-emoji">🥄</div>
+        <div class="dish-body">
+          <div class="dish-title">DG1 &middot; Visibility through explanation</div>
+          <div class="dish-meta">addresses awareness &middot; passivity &middot; transparency</div>
+        </div>
+      </div>
+      <div class="dish">
+        <div class="dish-emoji">🍴</div>
+        <div class="dish-body">
+          <div class="dish-title">DG2 &middot; Fit + diversification</div>
+          <div class="dish-meta">addresses passivity &middot; transparency &middot; adoption gap</div>
+        </div>
+      </div>
+      <div class="dish">
+        <div class="dish-emoji">🧐</div>
+        <div class="dish-body">
+          <div class="dish-title">DG3 &middot; Trust through visible legitimacy</div>
+          <div class="dish-meta">addresses legitimacy &middot; adoption gap</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 7 — LIVE DEMO ============ -->
+<section class="scene bg-peach" id="sc7">
+  <div class="demo-stage">
+    <div class="step demo-eyebrow" data-s="0">THE MENU &middot; COURSES SERVED</div>
+    <div class="step demo-title" data-s="0">Live <span class="accent">tasting.</span></div>
+    <div class="step demo-sub" data-s="0">Switch to Chrome. The extension is installed.<br>Let's eat.</div>
+    <div class="step demo-icons-row" data-s="0">
+      <div class="demo-icon-block"><div class="demo-icon-emoji">🍞</div><div class="demo-icon-label">WARM<br>WELCOME</div></div>
+      <div class="arrow">→</div>
+      <div class="demo-icon-block"><div class="demo-icon-emoji">🥗</div><div class="demo-icon-label">DYNAMIC<br>ISLAND</div></div>
+      <div class="arrow">→</div>
+      <div class="demo-icon-block"><div class="demo-icon-emoji">💭</div><div class="demo-icon-label">WHY THIS<br>VIDEO?</div></div>
+      <div class="arrow">→</div>
+      <div class="demo-icon-block"><div class="demo-icon-emoji">🪞</div><div class="demo-icon-label">WEEKLY<br>MIRROR</div></div>
+      <div class="arrow">→</div>
+      <div class="demo-icon-block"><div class="demo-icon-emoji">🔔</div><div class="demo-icon-label">SIMILAR<br>BANNER</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 8 — TASTING ============ -->
+<section class="scene bg-cream" id="sc8">
+  <div class="title-block">
+    <div class="step eyebrow eyebrow-block" data-s="0">USABILITY TEST &middot; WITHIN-SUBJECTS &middot; MAY 12&ndash;14, 2026</div>
+    <div class="step h-title" data-s="0">The blind tasting.</div>
+    <div class="step" data-s="0" style="margin-top:14px; font-size:22px; color:var(--muted); font-style:italic">
+      Two of five matched the <strong style="color:var(--coral-deep); font-style:normal">passive profile</strong> Feedversity was designed for.
+    </div>
+  </div>
+  <div class="tasting-stage">
+    <div class="step participants-grid" data-s="1">
+      <div class="p-card">
+        <div class="p-avatar">🧑‍💼</div>
+        <div class="p-id-big">P1</div>
+        <div class="p-profile">Passive &middot; mobile</div>
+        <div class="p-hours">5 h / week</div>
+      </div>
+      <div class="p-card target">
+        <div class="p-avatar">🧑‍💻</div>
+        <div class="p-id-big">P2</div>
+        <div class="p-profile">Passive &middot; multi-tab</div>
+        <div class="p-hours">10 h / week</div>
+      </div>
+      <div class="p-card">
+        <div class="p-avatar">🧑‍🎤</div>
+        <div class="p-id-big">P3</div>
+        <div class="p-profile">Subscription-driven</div>
+        <div class="p-hours">10 h / week</div>
+      </div>
+      <div class="p-card target">
+        <div class="p-avatar">🧑‍🍳</div>
+        <div class="p-id-big">P4</div>
+        <div class="p-profile">Sub + history</div>
+        <div class="p-hours">1.5 h / week</div>
+      </div>
+      <div class="p-card">
+        <div class="p-avatar">🧑‍🎓</div>
+        <div class="p-id-big">P5</div>
+        <div class="p-profile">Homepage-driven</div>
+        <div class="p-hours">8 h / week</div>
+      </div>
+    </div>
+    <div class="step timeline" data-s="2">
+      <div class="tl-step">
+        <div class="tl-dot">1</div>
+        <div class="tl-title">PHASE 1</div>
+        <div class="tl-time">4 MIN</div>
+        <div class="tl-desc">Natural YouTube, no extension</div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot">📋</div>
+        <div class="tl-title">USABILITY SCALE</div>
+        <div class="tl-time">1 MIN</div>
+        <div class="tl-desc">10-item baseline questionnaire</div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot">2</div>
+        <div class="tl-title">PHASE 2</div>
+        <div class="tl-time">7 MIN</div>
+        <div class="tl-desc">Feedversity active, 3 tasks</div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot">📋</div>
+        <div class="tl-title">SCALE Δ + ITEMS</div>
+        <div class="tl-time">4 MIN</div>
+        <div class="tl-desc">Score change + metaphor &amp; data-comfort items</div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot">💬</div>
+        <div class="tl-title">DEBRIEF</div>
+        <div class="tl-time">~4 MIN</div>
+        <div class="tl-desc">Open-ended emotional response</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 9 — QUANTITATIVE ============ -->
+<section class="scene bg-peach" id="sc9">
+  <div class="title-block" style="margin-bottom:24px">
+    <div class="step eyebrow eyebrow-block" data-s="0">
+      USABILITY RESULTS &middot; ΔSUS PER PARTICIPANT
+      <div class="sus-meaning">System Usability Scale &middot; 10-item standardised questionnaire (Brooke, 1996)</div>
+    </div>
+    <div class="step sus-headline" data-s="0">Two <span class="pos">positive deltas</span>.<br>Both <span class="pos">passive</span> users.</div>
+  </div>
+  <div class="sus-stage">
+    <div class="step sus-bars" data-s="1">
+      <div class="sus-bar-row">
+        <div class="sus-bar-id">P1</div>
+        <div class="sus-bar-track"><div class="sus-bar-fill" style="right:50%; width:6.25%; justify-content:flex-start">&minus;5</div></div>
+        <div class="sus-bar-profile">Passive &middot; mobile</div>
+        <div class="sus-bar-value neg">&minus;5</div>
+      </div>
+      <div class="sus-bar-row target">
+        <div class="sus-bar-id">P2</div>
+        <div class="sus-bar-track"><div class="sus-bar-fill pos" style="left:50%; width:6.25%">+5</div></div>
+        <div class="sus-bar-profile" style="color:var(--mint-ink); font-weight:700">Passive &middot; target ✓</div>
+        <div class="sus-bar-value pos">+5</div>
+      </div>
+      <div class="sus-bar-row">
+        <div class="sus-bar-id">P3</div>
+        <div class="sus-bar-track"><div class="sus-bar-fill" style="right:50%; width:34.4%; justify-content:flex-start">&minus;27.5</div></div>
+        <div class="sus-bar-profile">Subscription-driven</div>
+        <div class="sus-bar-value neg">&minus;27.5</div>
+      </div>
+      <div class="sus-bar-row target">
+        <div class="sus-bar-id">P4</div>
+        <div class="sus-bar-track"><div class="sus-bar-fill pos" style="left:50%; width:3.1%">+2.5</div></div>
+        <div class="sus-bar-profile" style="color:var(--mint-ink); font-weight:700">Sub+history &middot; target ✓</div>
+        <div class="sus-bar-value pos">+2.5</div>
+      </div>
+      <div class="sus-bar-row">
+        <div class="sus-bar-id">P5</div>
+        <div class="sus-bar-track"><div class="sus-bar-fill" style="right:50%; width:15.6%; justify-content:flex-start">&minus;12.5</div></div>
+        <div class="sus-bar-profile">Homepage-driven</div>
+        <div class="sus-bar-value neg">&minus;12.5</div>
+      </div>
+    </div>
+    <div class="step sus-customs" data-s="2">
+      <div class="sus-custom-card">
+        <div class="sus-custom-big">4.4<span>/5</span></div>
+        <div class="sus-custom-body">
+          <div class="sus-custom-label">DIET METAPHOR UNDERSTOOD</div>
+          <div class="sus-custom-desc">4 out of 5 participants got it in under 2 minutes.</div>
+        </div>
+      </div>
+      <div class="sus-custom-card">
+        <div class="sus-custom-big">3.4<span>/5</span></div>
+        <div class="sus-custom-body">
+          <div class="sus-custom-label">COMFORT WITH DATA ACCESS</div>
+          <div class="sus-custom-desc">Wide split, from 1/5 to 5/5. The trust gap, confirmed.</div>
+        </div>
+      </div>
+    </div>
+    <div class="step sus-takeaway" data-s="2">Mean ΔSUS = &minus;7.5: structural noise (20-year-old product vs 6-week prototype).<br><strong>The signal is in the two greens. Both match the passive profile we designed for.</strong></div>
+  </div>
+</section>
+
+<!-- ============ SCENE 10 — AUDIENCE PARADOX ============ -->
+<section class="scene bg-ink" id="sc10">
+  <div class="paradox-stage">
+    <div class="paradox-quote" data-q="0">
+      "Pas la motivation pour moi-même, mais si j'ai un fils j'aimerais qu'il ait ça."
+      <span class="speaker">&middot; P1</span>
+    </div>
+    <div class="paradox-quote" data-q="1">
+      "It's useful, but for someone like my parents, not for me."
+      <span class="speaker">&middot; P2</span>
+    </div>
+    <div class="paradox-quote" data-q="2">
+      "I would recommend it to a friend who scrolls too much."
+      <span class="speaker">&middot; P3</span>
+    </div>
+    <div class="paradox-quote" data-q="3">
+      "Maybe for younger people, before they get used to it."
+      <span class="speaker">&middot; P4</span>
+    </div>
+    <div class="paradox-quote" data-q="4">
+      "I'm not the target you are looking for."
+      <span class="speaker">&middot; P5</span>
+    </div>
+    <div class="paradox-count" data-q="5">
+      <div><span class="num" id="paradox-num">0</span><span class="of">/5</span></div>
+      <div class="paradox-count-label">WOULDN'T USE IT FOR THEMSELVES</div>
+    </div>
+    <div class="paradox-reveal" data-q="6">
+      <div class="pre">We recruited them as passive users. They all believed themselves immune.</div>
+      <div class="punch">
+        <div class="punch-line">The users who can articulate the filter-bubble problem</div>
+        <div class="punch-line">are <span>the same users</span> who do not believe they have it.</div>
+      </div>
+      <div class="label">THE AUDIENCE PARADOX</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 11 — REPOSITIONING ============ -->
+<section class="scene bg-cream" id="sc11">
+  <div class="title-block">
+    <div class="step eyebrow eyebrow-block" data-s="0">IF NOT THEM, THEN WHO?</div>
+    <div class="step h-title" data-s="0">Two new plates to set.</div>
+  </div>
+  <div class="repos-cards">
+    <div class="step repos-card guardians" data-s="1">
+      <div class="repos-emoji">👨‍👧</div>
+      <div class="repos-title">Guardians</div>
+      <div class="repos-sub">PARENTS &middot; EDUCATORS &middot; OLDER SIBLINGS</div>
+      <div class="repos-desc">Install Feedversity on a teenager's device. Use the Weekly Mirror as a <strong>shared conversation artefact</strong>.</div>
+      <div class="repos-quote">The Diet metaphor reinterpreted: "Here is what your child has been eating."</div>
+    </div>
+    <div class="step repos-card teens" data-s="1">
+      <div class="repos-emoji">🧑‍🎓</div>
+      <div class="repos-title">Adolescents</div>
+      <div class="repos-sub">AGES 12&ndash;18 &middot; BEFORE THE BUBBLE FORMS</div>
+      <div class="repos-desc">Design for users at an <strong>earlier stage</strong> of algorithmic exposure, before consumption patterns calcify.</div>
+      <div class="repos-quote">Pre-existing hypothesis (cf. YouTube Kids). Projected onto by 4/5 of our participants.</div>
+    </div>
+  </div>
+  <div class="step implications" data-s="2">
+    <div class="impl-item">
+      <strong>IMPL. 2 &middot; CLASSIFICATION ACCOUNTABLE</strong>
+      Multilingual support &middot; granular subcategories &middot; transparent "uncategorised" copy.
+    </div>
+    <div class="impl-item">
+      <strong>IMPL. 3 &middot; TRUST CONTEXTUAL</strong>
+      Privacy badge near the Dynamic Island, not just in the Warm Welcome.
+    </div>
+    <div class="impl-item">
+      <strong>IMPL. 4 &middot; METHODOLOGY</strong>
+      Drop ΔSUS as primary metric. Longitudinal within-subjects, no YouTube comparison.
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 12 — REFLECTION ============ -->
+<section class="scene bg-peach" id="sc12">
+  <div class="step eyebrow eyebrow-block" data-s="0">THE COOK'S REFLECTION</div>
+  <div class="step reflection-main" data-s="0">
+    "The most valuable finding was one we could not have anticipated from formative research alone."
+  </div>
+  <div class="step reflection-sub" data-s="1">
+    User-centred design didn't just shape our features.<br>
+    It told us we were designing for <strong>the wrong audience</strong>.
+  </div>
+  <div class="step reflection-cols" data-s="2">
+    <div class="ref-col">
+      <h4>LIMITATIONS</h4>
+      <ul>
+        <li><strong>Only 5 participants</strong>: not enough to prove the paradox is general</li>
+        <li><strong>Order bias</strong>: YouTube went first, so it had a 20-year head start</li>
+        <li><strong>No install step</strong>: the extension was already there, install friction never tested</li>
+        <li><strong>Hidden value</strong>: "bread vs bento" implicitly ranks foods, and content</li>
+      </ul>
+    </div>
+    <div class="ref-col">
+      <h4>NEXT</h4>
+      <ul>
+        <li><strong>Test the new audience</strong>: 30 teens (12&ndash;18) and 10 parents, in person</li>
+        <li><strong>Real-world use</strong>: 3 weeks at home, daily diary + weekly Mirror reviews</li>
+        <li><strong>Mobile companion</strong>: 66% watch on phone, the extension is desktop-only today</li>
+        <li><strong>Measure how it feels</strong>: 28 adjective pairs (dull/exciting, etc.) via AttrakDiff</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENE 13 — CLOSE ============ -->
+<section class="scene bg-ink" id="sc13">
+  <div class="close-stage">
+    <div class="step close-emoji-row" data-s="0">
+      <span>🥖</span><span class="close-arrow">→</span>
+      <span>🥪</span><span class="close-arrow">→</span>
+      <span>🥗</span><span class="close-arrow">→</span>
+      <span>🍱</span><span class="close-arrow">→</span>
+      <span>🍲</span>
+    </div>
+    <div class="step close-tagline" data-s="0">
+      We are what we watch.<br>
+      And <span class="accent">somebody else</span> is doing the cooking.
+    </div>
+    <div class="step close-cta" data-s="1">
+      <div class="close-cta-label">START COOKING NOW →</div>
+      <div class="close-cta-qr" id="qr-container">
+        <!-- Drop a file named qr-feedversity.png in the same folder to replace the placeholder QR -->
+        <svg id="qr-fallback" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+          <rect width="21" height="21" fill="white"/>
+          <g fill="#1A1410">
+            <rect x="0" y="0" width="7" height="7" fill="none" stroke="#1A1410" stroke-width="1"/>
+            <rect x="2" y="2" width="3" height="3"/>
+            <rect x="14" y="0" width="7" height="7" fill="none" stroke="#1A1410" stroke-width="1"/>
+            <rect x="16" y="2" width="3" height="3"/>
+            <rect x="0" y="14" width="7" height="7" fill="none" stroke="#1A1410" stroke-width="1"/>
+            <rect x="2" y="16" width="3" height="3"/>
+            <rect x="9" y="2" width="1" height="1"/><rect x="10" y="3" width="1" height="1"/><rect x="11" y="2" width="1" height="1"/><rect x="12" y="4" width="1" height="1"/>
+            <rect x="9" y="9" width="1" height="1"/><rect x="11" y="10" width="2" height="1"/><rect x="10" y="11" width="1" height="2"/><rect x="13" y="9" width="1" height="2"/>
+            <rect x="9" y="14" width="1" height="1"/><rect x="11" y="15" width="1" height="2"/><rect x="13" y="14" width="1" height="1"/><rect x="10" y="17" width="2" height="1"/>
+            <rect x="14" y="10" width="1" height="1"/><rect x="16" y="11" width="2" height="1"/><rect x="18" y="13" width="1" height="2"/><rect x="15" y="14" width="2" height="1"/>
+            <rect x="2" y="9" width="1" height="2"/><rect x="4" y="10" width="1" height="1"/><rect x="3" y="12" width="2" height="1"/>
+            <rect x="14" y="16" width="1" height="2"/><rect x="16" y="14" width="2" height="1"/><rect x="18" y="17" width="1" height="1"/><rect x="16" y="19" width="2" height="1"/>
+          </g>
+        </svg>
+      </div>
+      <div class="close-cta-url">github.com/mandalito/BubbleBreak</div>
+      <div class="close-team">
+        <strong>FEEDVERSITY</strong> &middot; GROUP D &middot; UNIL MScIS &middot; SPRING 2026
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+const scenes = Array.from(document.querySelectorAll('.scene'));
+let sceneIdx = 0;
+let stepIdx = 0;
+
+const sceneSteps = {
+  0: 2, 1: 3, 2: 2, 3: 2, 4: 2, 5: 3, 6: 1, 7: 3, 8: 3, 9: 7, 10: 3, 11: 3, 12: 2
+};
+
+// scenes whose step 0 is intentionally blank (no auto-run)
+const blankStart = { 0: true };
+
+function setScene(i) {
+  scenes.forEach((s, idx) => s.classList.toggle('active', idx === i));
+  sceneIdx = i;
+  resetScene(i);
+  if (blankStart[i]) {
+    stepIdx = 0;
+  } else {
+    runSceneStep(i, 0);
+    stepIdx = 1;
+  }
+}
+
+function resetScene(i) {
+  const sc = scenes[i];
+  sc.querySelectorAll('.step').forEach(el => el.classList.remove('show'));
+  sc.querySelector('.hook-sentence')?.classList.remove('show');
+  sc.querySelector('.hook-eat')?.classList.remove('strike','faded');
+  sc.querySelector('.hook-watch-row')?.classList.remove('show');
+  sc.querySelector('.hook-credit')?.classList.remove('show');
+  sc.querySelectorAll('.paradox-quote, .paradox-count, .paradox-reveal').forEach(el => el.classList.remove('active'));
+  const pn = sc.querySelector('#paradox-num');
+  if (pn) pn.textContent = '0';
+}
+
+function advance() {
+  const max = sceneSteps[sceneIdx] || 1;
+  if (stepIdx >= max) {
+    if (sceneIdx < scenes.length - 1) setScene(sceneIdx + 1);
+    return;
+  }
+  runSceneStep(sceneIdx, stepIdx);
+  stepIdx++;
+}
+
+function rewind() {
+  if (stepIdx > 1 || (blankStart[sceneIdx] && stepIdx > 0)) {
+    stepIdx--;
+    resetScene(sceneIdx);
+    for (let i = (blankStart[sceneIdx] ? 0 : 0); i < stepIdx; i++) runSceneStep(sceneIdx, i);
+  } else if (sceneIdx > 0) {
+    setScene(sceneIdx - 1);
+    const max = sceneSteps[sceneIdx];
+    resetScene(sceneIdx);
+    for (let i = 0; i < max; i++) runSceneStep(sceneIdx, i);
+    stepIdx = max;
+  }
+}
+
+function runSceneStep(sIdx, step) {
+  const sc = scenes[sIdx];
+  if (sIdx === 0) {
+    handleHook(sc, step);
+  } else if (sIdx === 9) {
+    handleParadox(sc, step);
+  } else {
+    sc.querySelectorAll('[data-s="' + step + '"]').forEach(el => el.classList.add('show'));
+  }
+}
+
+/* Scene 1: initial state = blank, step 0 = sentence, step 1 = strike + watch + credit */
+function handleHook(sc, step) {
+  if (step === 0) {
+    sc.querySelector('.hook-sentence').classList.add('show');
+  } else if (step === 1) {
+    sc.querySelector('.hook-eat').classList.add('strike');
+    setTimeout(() => sc.querySelector('.hook-eat').classList.add('faded'), 400);
+    setTimeout(() => sc.querySelector('.hook-watch-row').classList.add('show'), 350);
+    setTimeout(() => sc.querySelector('.hook-credit').classList.add('show'), 700);
+  }
+}
+
+function handleParadox(sc, step) {
+  sc.querySelectorAll('.paradox-quote, .paradox-count, .paradox-reveal').forEach(el => el.classList.remove('active'));
+  if (step <= 4) {
+    sc.querySelector('.paradox-quote[data-q="' + step + '"]').classList.add('active');
+  } else if (step === 5) {
+    sc.querySelector('.paradox-count').classList.add('active');
+    const num = document.getElementById('paradox-num');
+    let n = 0;
+    num.textContent = '0';
+    const iv = setInterval(() => {
+      n++;
+      num.textContent = String(n);
+      if (n >= 5) clearInterval(iv);
+    }, 110);
+  } else if (step === 6) {
+    sc.querySelector('.paradox-reveal').classList.add('active');
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') {
+    e.preventDefault(); advance();
+  } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+    e.preventDefault(); rewind();
+  }
+});
+
+document.body.addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  advance();
+});
+
+// QR auto-swap: if qr-feedversity.png exists in same folder, use it
+const qrSwap = new Image();
+qrSwap.onload = function() {
+  const container = document.getElementById('qr-container');
+  const fallback = document.getElementById('qr-fallback');
+  if (fallback) fallback.style.display = 'none';
+  qrSwap.style.width = '100%';
+  qrSwap.style.height = '100%';
+  qrSwap.style.objectFit = 'contain';
+  container.appendChild(qrSwap);
+};
+qrSwap.src = 'qr-feedversity.png';
+
+setScene(0);
+</script>
+
+</body>
+</html>
