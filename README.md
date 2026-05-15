@@ -1,4 +1,4 @@
-# Feedversity — Making YouTube's Recommendation Dynamics Visible
+# FeedVersity — Making YouTube's Recommendation Dynamics Visible
 
 > *We are what we watch.*
 
@@ -6,7 +6,7 @@ A Chrome extension that makes the shape of your YouTube media diet legible — w
 
 Built for **UNIL MScIS · Interaction Design (IxD) · Spring 2026 · Group D** as part of the course project on transforming democratic discourse.
 
-📊 **[View the final presentation →](https://mandalito.github.io/BubbleBreak/presentation.html)**
+📊 **[View the final presentation →](https://mandalito.github.io/FeedVersity/presentation.html)**
 
 ---
 
@@ -73,7 +73,7 @@ BubbleBreak/
 1. Clone this repository
 
    ```bash
-   git clone https://github.com/mandalito/BubbleBreak.git
+   git clone https://github.com/mandalito/FeedVersity.git
    ```
 
 2. Open `chrome://extensions/`, enable **Developer mode**, click **Load unpacked**, and select the `extension-v2/` folder.
@@ -88,7 +88,7 @@ That's it. No API key, no sign-up, no data leaves your browser.
 
 A single-file HTML presentation, prism-style, 13 scenes, ~12 minutes.
 
-- **Live**: [mandalito.github.io/BubbleBreak/presentation.html](https://mandalito.github.io/BubbleBreak/presentation.html)
+- **Live**: [mandalito.github.io/FeedVersity/presentation.html](https://mandalito.github.io/FeedVersity/presentation.html)
 - **Local**: open [`presentation.html`](./presentation.html) in any modern browser
 - **Navigation**: `→` / `Space` / `PageDown` advance, `←` / `PageUp` rewind, click anywhere advances
 
